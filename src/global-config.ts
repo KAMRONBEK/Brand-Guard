@@ -16,6 +16,12 @@ export type GlobalConfig = {
 	apiBaseUrl: string;
 	/** Routing mode: frontend routing or backend routing */
 	routerMode: "frontend" | "backend";
+	/** Product docs URL (empty hides account menu link) */
+	docsUrl: string;
+	/** Public repository URL (empty hides header GitHub button) */
+	repositoryUrl: string;
+	/** Community URL e.g. Discord (empty hides header button) */
+	communityUrl: string;
 };
 
 /**
@@ -26,10 +32,13 @@ export type GlobalConfig = {
  * Please don't use the import.meta.env to get the configuration, use the GLOBAL_CONFIG instead
  */
 export const GLOBAL_CONFIG: GlobalConfig = {
-	appName: "Slash Admin",
+	appName: "Brand Guard",
 	appVersion: packageJson.version,
 	defaultRoute: import.meta.env.VITE_APP_DEFAULT_ROUTE || "/workbench",
 	publicPath: import.meta.env.VITE_APP_PUBLIC_PATH || "/",
 	apiBaseUrl: import.meta.env.VITE_APP_API_BASE_URL || "/api",
 	routerMode: import.meta.env.VITE_APP_ROUTER_MODE || "frontend",
+	docsUrl: import.meta.env.VITE_APP_DOCS_URL || "",
+	repositoryUrl: import.meta.env.VITE_APP_REPOSITORY_URL || "",
+	communityUrl: import.meta.env.VITE_APP_COMMUNITY_URL || "",
 };

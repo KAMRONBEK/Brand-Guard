@@ -1,100 +1,53 @@
-<div align="center"> 
-<br> 
-<br>
-<img src="./src/assets/icons/ic-logo-badge.svg" height="140" />
-<h3> Slash Admin </h3>
-  <p>
-    <p style="font-size: 14px">
-      Slash Admin is a modern admin dashboard template built with React 19, Vite, shadcn/ui, and TypeScript. It is designed to help developers quickly create powerful admin management systems.
-    </p>
-    <br />
-    <br />
-    <a href="https://admin.slashspaces.com/">Preview</a>
-    ·
-    <a href="https://discord.gg/fXemAXVNDa">Discord</a>
-    ·
-    <a href="https://docs-admin.slashspaces.com/">Document</a>
-    <br />
-    <br />
-    <a href="https://trendshift.io/repositories/6387" target="_blank"><img src="https://trendshift.io/api/badge/repositories/6387" alt="d3george%2Fslash-admin | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+<div align="center">
+<br />
+<br />
+<img src="./src/assets/icons/ic-logo-badge.svg" height="140" alt="Brand Guard logo" />
+<h3>Brand Guard</h3>
+<p style="font-size: 14px">
+  Social listening and brand monitoring admin — React 19, Vite, TypeScript, and a modern UI stack.
+</p>
 </div>
 
 **English** | [中文](./README.zh-CN.md)
 
-##  Sponsor
-<div style="display: flex; gap: 50px"> 
-  <img style="width:300px" src="https://d3george.github.io/github-static/pay/weixin.jpg" >
-  <img style="width:300px" src="https://d3george.github.io/github-static/pay/buymeacoffee.png" />
-</div>
-
-## Preview
-+ https://admin.slashspaces.com/
-
-|![login.png](https://d3george.github.io/github-static/slash-admin/sa-web-light.jpeg)|![login_dark.png](https://d3george.github.io/github-static/slash-admin/sa-web-dark.jpeg)
-| ----------------------------------------------------------------- | ------------------------------------------------------------------- |
-|![analysis.png](https://d3george.github.io/github-static/slash-admin/sa-mobile-light.jpeg)|![workbench.png](https://d3george.github.io/github-static/slash-admin/sa-mobile-dark.jpeg)
-| | 
-
-## Features
-
-- Built using React 19 hooks.
-- Powered by Vite for rapid development and hot module replacement.
-- Integrates shadcn/ui, providing a rich set of UI components and design patterns.
-- Written in TypeScript, offering type safety and an improved development experience.
-- Responsive design, adapting to various screen sizes and devices.
-- Flexible routing configuration, supporting nested routes.
-- Integrated access control based on user roles.
-- Supports internationalization for easy language switching.
-- Includes common admin features like user management, role management, and permission management.
-- Customizable themes and styles to meet your branding needs.
-- Mocking solution based on MSW and Faker.js.
-- State management using Zustand.
-- Data fetching using React-Query.
-
-## Quick Start
-
-### Get the Project Code
-
-```bash
-git clone https://github.com/d3george/slash-admin.git
-```
-
-### Install Dependencies
-
-In the project's root directory, run the following command to install project dependencies:
+## Quick start
 
 ```bash
 pnpm install
-```
-
-### Start the Development Server
-
-Run the following command to start the development server:
-
-```bash
 pnpm dev
 ```
 
-Visit [http://localhost:3001](http://localhost:3001) to view your application.
+Open [http://localhost:3001](http://localhost:3001).
 
-### Build for Production
+Copy `.env.example` to `.env` and adjust values as needed. Optional branding links:
 
-Run the following command to build the production version:
+- `VITE_APP_DOCS_URL` — shows “Document” in the account menu when set.
+- `VITE_APP_REPOSITORY_URL` — shows the GitHub icon in the header when set.
+- `VITE_APP_COMMUNITY_URL` — shows the Discord icon in the header when set.
 
-```bash
-pnpm build
-```
+## Scripts
 
-## Git Contribution submission specification
-- `feat` new features
-- `fix`  fix the
-- `docs` documentation or comments
-- `style` code format (changes that do not affect code execution)
-- `refactor` refactor
-- `perf` performance optimization
-- `revert` revert commit
-- `test` test related
-- `chore` changes in the construction process or auxiliary tools
-- `ci` modify CI configuration and scripts
-- `types` type definition file changes
-- `wip` in development
+| Command        | Description              |
+| -------------- | ------------------------ |
+| `pnpm dev`     | Start Vite dev server    |
+| `pnpm build`   | Typecheck + production build |
+| `pnpm preview` | Preview production build |
+
+## Attribution
+
+UI shell and patterns are derived from [Slash Admin](https://github.com/d3george/slash-admin) (MIT). Original template copyright remains with its authors; Brand Guard-specific changes are under this project’s license.
+
+## Commit conventions
+
+- `feat` — new features  
+- `fix` — bug fixes  
+- `docs` — documentation  
+- `style` — formatting only  
+- `refactor` — refactors  
+- `perf` — performance  
+- `revert` — revert a commit  
+- `test` — tests  
+- `chore` — tooling / maintenance  
+- `ci` — CI config  
+- `types` — type-only changes  
+- `wip` — work in progress  

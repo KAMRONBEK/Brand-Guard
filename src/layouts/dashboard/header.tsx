@@ -1,5 +1,6 @@
 import { Icon } from "@/components/icon";
 import LocalePicker from "@/components/locale-picker";
+import { GLOBAL_CONFIG } from "@/global-config";
 import { useSettings } from "@/store/settingStore";
 import { Button } from "@/ui/button";
 import { cn } from "@/utils";
@@ -18,7 +19,7 @@ export default function Header({ leftSlot }: HeaderProps) {
 	const { breadCrumb } = useSettings();
 	return (
 		<header
-			data-slot="slash-layout-header"
+			data-slot="brand-guard-layout-header"
 			className={cn(
 				"sticky top-0 left-0 right-0 z-app-bar",
 				"flex items-center justify-between px-2 grow-0 shrink-0",
@@ -35,22 +36,26 @@ export default function Header({ leftSlot }: HeaderProps) {
 			<div className="flex items-center gap-1">
 				<SearchBar />
 				<LocalePicker />
-				<Button
-					variant="ghost"
-					size="icon"
-					className="rounded-full"
-					onClick={() => window.open("https://github.com/d3george/slash-admin")}
-				>
-					<Icon icon="mdi:github" size={24} />
-				</Button>
-				<Button
-					variant="ghost"
-					size="icon"
-					className="rounded-full"
-					onClick={() => window.open("https://discord.gg/fXemAXVNDa")}
-				>
-					<Icon icon="carbon:logo-discord" size={24} />
-				</Button>
+				{GLOBAL_CONFIG.repositoryUrl ? (
+					<Button
+						variant="ghost"
+						size="icon"
+						className="rounded-full"
+						onClick={() => window.open(GLOBAL_CONFIG.repositoryUrl)}
+					>
+						<Icon icon="mdi:github" size={24} />
+					</Button>
+				) : null}
+				{GLOBAL_CONFIG.communityUrl ? (
+					<Button
+						variant="ghost"
+						size="icon"
+						className="rounded-full"
+						onClick={() => window.open(GLOBAL_CONFIG.communityUrl)}
+					>
+						<Icon icon="carbon:logo-discord" size={24} />
+					</Button>
+				) : null}
 				<NoticeButton />
 				<SettingButton />
 				<AccountDropdown />

@@ -16,7 +16,7 @@ function QrCodeFrom() {
 			</div>
 
 			<div className="flex w-full flex-col items-center justify-center p-4">
-				<QRCodeSVG value="https://github.com/d3george/slash-admin" size={200} />
+				<QRCodeSVG value={`${window.location.origin}/auth/login`} size={200} />
 			</div>
 			<ReturnButton onClick={backToLogin} />
 		</>

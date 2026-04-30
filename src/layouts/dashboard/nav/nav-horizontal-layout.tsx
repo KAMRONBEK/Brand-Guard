@@ -6,7 +6,7 @@ import { ScrollArea } from "@/ui/scroll-area";
 export function NavHorizontalLayout({ data }: NavProps) {
 	return (
 		<nav
-			data-slot="slash-layout-nav"
+			data-slot="brand-guard-layout-nav"
 			className={
 				"w-full bg-background z-app-bar sticky top-[var(--layout-header-height)] left-0 right-0 grow-0 shrink-0"
 			}

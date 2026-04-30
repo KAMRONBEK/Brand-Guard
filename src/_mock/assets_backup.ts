@@ -422,21 +422,21 @@ export const DB_USER: User[] = [
 		username: "admin",
 		password: "demo1234",
 		avatar: faker.image.avatarGitHub(),
-		email: "admin@slash.com",
+		email: "admin@brandguard.local",
 	},
 	{
 		id: "user_test_id",
 		username: "test",
 		password: "demo1234",
 		avatar: faker.image.avatarGitHub(),
-		email: "test@slash.com",
+		email: "test@brandguard.local",
 	},
 	{
 		id: "user_guest_id",
 		username: "guest",
 		password: "demo1234",
 		avatar: faker.image.avatarGitHub(),
-		email: "guest@slash.com",
+		email: "guest@brandguard.local",
 	},
 ];
 

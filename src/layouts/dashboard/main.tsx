@@ -36,7 +36,7 @@ const Main = () => {
 	return (
 		<AuthGuard checkAny={currentNavAuth} fallback={<Page403 />}>
 			<main
-				data-slot="slash-layout-main"
+				data-slot="brand-guard-layout-main"
 				className={cn(
 					"flex-auto w-full flex flex-col",
 					"transition-[max-width] duration-300 ease-in-out",

@@ -6,7 +6,7 @@ import { m } from "motion/react";
 import { repeat } from "ramda";
 import { useMemo } from "react";
 
-const TEXT = "SlashAdmin";
+const TEXT = "BrandGuard";
 type Props = {
 	isText: boolean;
 	isMulti: boolean;

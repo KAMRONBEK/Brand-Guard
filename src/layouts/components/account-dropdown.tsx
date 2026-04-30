@@ -1,3 +1,4 @@
+import { GLOBAL_CONFIG } from "@/global-config";
 import { useLoginStateContext } from "@/pages/sys/login/providers/login-provider";
 import { useRouter } from "@/routes/hooks";
 import { useUserActions, useUserInfo } from "@/store/userStore";
@@ -48,11 +49,13 @@ export default function AccountDropdown() {
 					</div>
 				</div>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem asChild>
-					<NavLink to="https://docs-admin.slashspaces.com/" target="_blank">
-						{t("sys.docs")}
-					</NavLink>
-				</DropdownMenuItem>
+				{GLOBAL_CONFIG.docsUrl ? (
+					<DropdownMenuItem asChild>
+						<a href={GLOBAL_CONFIG.docsUrl} target="_blank" rel="noopener noreferrer">
+							{t("sys.docs")}
+						</a>
+					</DropdownMenuItem>
+				) : null}
 				<DropdownMenuItem asChild>
 					<NavLink to="/management/user/profile">{t("sys.nav.user.profile")}</NavLink>
 				</DropdownMenuItem>

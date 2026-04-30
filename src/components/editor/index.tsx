@@ -8,7 +8,7 @@ import Toolbar, { formats } from "./toolbar";
 interface Props extends ReactQuillProps {
 	sample?: boolean;
 }
-export default function Editor({ id = "slash-quill", sample = false, ...other }: Props) {
+export default function Editor({ id = "brand-guard-quill", sample = false, ...other }: Props) {
 	const modules = {
 		toolbar: {
 			container: `#${id}`,

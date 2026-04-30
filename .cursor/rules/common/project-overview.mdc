@@ -4,6 +4,10 @@ globs:
 alwaysApply: true
 ---
 
+# Brand Guard
+
+Social listening and brand monitoring web admin. UI shell derived from the Slash Admin template (MIT).
+
 # Project Specification
 
 ## Tech Stack
