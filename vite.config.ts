@@ -40,6 +40,12 @@ export default defineConfig(({ mode }) => {
 					rewrite: (path) => path.replace(/^\/api/, ""),
 					secure: false,
 				},
+				"/comment-api": {
+					target: env.VITE_APP_COMMENT_API_PROXY_TARGET || "https://comment-api.fapi.uz",
+					changeOrigin: true,
+					rewrite: (path) => path.replace(/^\/comment-api/, ""),
+					secure: true,
+				},
 			},
 		},
 

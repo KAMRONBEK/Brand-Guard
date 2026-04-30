@@ -123,7 +123,9 @@
 				"permission": "Permission",
 				"role": "Role",
 				"user": "User",
-				"user_detail": "User Detail"
+				"user_detail": "User Detail",
+				"comment_accounts": "Comment API accounts",
+				"comment_monitors": "Comment monitors"
 			},
 			"toast": "Toast",
 			"token_expired": "Token Expired",

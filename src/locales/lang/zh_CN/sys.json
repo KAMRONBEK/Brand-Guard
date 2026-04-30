@@ -103,7 +103,9 @@
 				"permission": "权限",
 				"role": "角色",
 				"user": "用户",
-				"user_detail": "用户详情"
+				"user_detail": "用户详情",
+				"comment_accounts": "评论 API 账号池",
+				"comment_monitors": "评论监控"
 			},
 			"blog": "博客",
 			"components": "组件",

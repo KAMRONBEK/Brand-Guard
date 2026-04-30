@@ -14,6 +14,8 @@ export type GlobalConfig = {
 	publicPath: string;
 	/** Base URL for API endpoints */
 	apiBaseUrl: string;
+	/** Base URL for Instagram Comment Reader API (raw JSON, not Result<T> envelope) */
+	commentApiBaseUrl: string;
 	/** Routing mode: frontend routing or backend routing */
 	routerMode: "frontend" | "backend";
 	/** Product docs URL (empty hides account menu link) */
@@ -37,6 +39,9 @@ export const GLOBAL_CONFIG: GlobalConfig = {
 	defaultRoute: import.meta.env.VITE_APP_DEFAULT_ROUTE || "/workbench",
 	publicPath: import.meta.env.VITE_APP_PUBLIC_PATH || "/",
 	apiBaseUrl: import.meta.env.VITE_APP_API_BASE_URL || "/api",
+	commentApiBaseUrl:
+		import.meta.env.VITE_APP_COMMENT_API_BASE_URL ||
+		(import.meta.env.DEV ? "/comment-api" : "https://comment-api.fapi.uz"),
 	routerMode: import.meta.env.VITE_APP_ROUTER_MODE || "frontend",
 	docsUrl: import.meta.env.VITE_APP_DOCS_URL || "",
 	repositoryUrl: import.meta.env.VITE_APP_REPOSITORY_URL || "",

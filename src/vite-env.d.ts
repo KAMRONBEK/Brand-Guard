@@ -7,6 +7,10 @@ interface ImportMetaEnv {
 	readonly VITE_APP_PUBLIC_PATH: string;
 	/** Base URL for API endpoints */
 	readonly VITE_APP_API_BASE_URL: string;
+	/** Base URL for Comment Reader API (defaults to dev proxy `/comment-api` or prod host) */
+	readonly VITE_APP_COMMENT_API_BASE_URL?: string;
+	/** Dev-only: proxy target for `/comment-api` (see vite.config.ts) */
+	readonly VITE_APP_COMMENT_API_PROXY_TARGET?: string;
 	/** Routing mode: frontend routing or backend routing */
 	readonly VITE_APP_ROUTER_MODE: "frontend" | "backend";
 	/** Optional product documentation URL */

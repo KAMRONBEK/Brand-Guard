@@ -105,6 +105,24 @@ export const DB_MENU: Menu[] = [
 		path: "/management/system/permission",
 		component: "/pages/management/system/permission",
 	},
+	{
+		id: "management_system_comment_accounts",
+		parentId: "management_system",
+		name: "sys.nav.system.comment_accounts",
+		code: "management:system:comment_accounts",
+		type: MENU,
+		path: "/management/system/accounts",
+		component: "/pages/management/system/accounts",
+	},
+	{
+		id: "management_system_comment_monitors",
+		parentId: "management_system",
+		name: "sys.nav.system.comment_monitors",
+		code: "management:system:comment_monitors",
+		type: MENU,
+		path: "/management/system/monitors",
+		component: "/pages/management/system/monitors",
+	},
 	// menulevel
 	{
 		id: "menulevel",
