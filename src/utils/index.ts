@@ -35,7 +35,7 @@ export const checkAll = (items: string[], resourcePool: string[]) => items.every
 export const urlJoin = (...parts: string[]) => {
 	const result = parts
 		.map((part) => {
-			return part.replace(/^\/+|\/+$/g, ""); // 去除两边/
+			return part.replace(/^\/+|\/+$/g, ""); // trim slashes
 		})
 		.filter(Boolean);
 	return `/${result.join("/")}`;

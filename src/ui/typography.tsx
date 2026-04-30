@@ -1,6 +1,6 @@
+import { cva, type VariantProps } from "class-variance-authority";
+import { forwardRef, type HTMLAttributes } from "react";
 import { cn } from "@/utils";
-import { VariantProps, cva } from "class-variance-authority";
-import { HTMLAttributes, forwardRef } from "react";
 
 const titleVariants = cva("scroll-m-20 tracking-tight", {
 	variants: {
@@ -38,18 +38,18 @@ const titleVariants = cva("scroll-m-20 tracking-tight", {
 const textVariants = cva("", {
 	variants: {
 		variant: {
-			// 副标题
+			// Subtitle
 			subTitle1: "text-base font-semibold",
 			subTitle2: "text-sm font-normal",
 
-			// 正文
+			// Body
 			body1: "text-base font-normal",
 			body2: "text-sm font-normal",
 
-			// 说明文字
+			// Caption / helper
 			caption: "text-xs font-normal",
 
-			// 代码
+			// Inline code
 			code: "text-sm font-normal font-mono bg-muted relative rounded px-[0.3rem] py-[0.2rem]",
 		},
 		color: {

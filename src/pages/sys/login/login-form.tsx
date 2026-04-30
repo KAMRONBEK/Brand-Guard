@@ -1,3 +1,9 @@
+import { Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import { DB_USER } from "@/_mock/assets_backup";
 import type { SignInReq } from "@/api/services/userService";
 import { Icon } from "@/components/icon";
@@ -8,12 +14,6 @@ import { Checkbox } from "@/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/ui/form";
 import { Input } from "@/ui/input";
 import { cn } from "@/utils";
-import { Loader2 } from "lucide-react";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
-import { toast } from "sonner";
 import { LoginStateEnum, useLoginStateContext } from "./providers/login-provider";
 
 export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRef<"form">) {
@@ -86,7 +86,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 						)}
 					/>
 
-					{/* 记住我/忘记密码 */}
+					{/* Remember me + forgot password */}
 					<div className="flex flex-row justify-between">
 						<div className="flex items-center space-x-2">
 							<Checkbox
@@ -106,13 +106,13 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 						</Button>
 					</div>
 
-					{/* 登录按钮 */}
+					{/* Submit */}
 					<Button type="submit" className="w-full">
 						{loading && <Loader2 className="animate-spin mr-2" />}
 						{t("sys.login.loginButton")}
 					</Button>
 
-					{/* 手机登录/二维码登录 */}
+					{/* Mobile / QR sign-in */}
 					<div className="grid gap-4 sm:grid-cols-2">
 						<Button variant="outline" className="w-full" onClick={() => setLoginState(LoginStateEnum.MOBILE)}>
 							<Icon icon="uil:mobile-android" size={20} />
@@ -124,7 +124,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 						</Button>
 					</div>
 
-					{/* 其他登录方式 */}
+					{/* Social sign-in placeholders */}
 					<div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
 						<span className="relative z-10 bg-background px-2 text-muted-foreground">{t("sys.login.otherSignIn")}</span>
 					</div>
@@ -140,7 +140,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 						</Button>
 					</div>
 
-					{/* 注册 */}
+					{/* Sign up link */}
 					<div className="text-center text-sm">
 						{t("sys.login.noAccount")}
 						<Button variant="link" className="px-1" onClick={() => setLoginState(LoginStateEnum.REGISTER)}>

@@ -1,14 +1,14 @@
-import { Icon } from "@/components/icon";
-import { useSettings } from "@/store/settingStore";
-import { Button } from "@/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/ui/dropdown-menu";
-import { Input } from "@/ui/input";
 import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { faker } from "@faker-js/faker";
 import { type CSSProperties, useRef, useState } from "react";
 import { useEvent } from "react-use";
 import { ThemeMode } from "#/enum";
+import { Icon } from "@/components/icon";
+import { useSettings } from "@/store/settingStore";
+import { Button } from "@/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/ui/dropdown-menu";
+import { Input } from "@/ui/input";
 import KanbanTask from "./kanban-task";
 import { type Column, type Task, TaskPriority } from "./types";
 

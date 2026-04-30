@@ -1,5 +1,5 @@
-import { Progress } from "@/ui/progress";
 import { useEffect, useState } from "react";
+import { Progress } from "@/ui/progress";
 
 export function RouteLoadingProgress() {
 	const [progress, setProgress] = useState(0);
@@ -29,7 +29,6 @@ export function RouteLoadingProgress() {
 			};
 		};
 
-		// 监听 href 变化
 		const observer = new MutationObserver(() => {
 			const currentHref = window.location.href;
 			if (currentHref !== lastHref) {
@@ -38,19 +37,15 @@ export function RouteLoadingProgress() {
 			}
 		});
 
-		// 观察整个文档的变化
 		observer.observe(document, {
 			subtree: true,
 			childList: true,
 		});
 
-		// 监听 popstate 事件（处理浏览器前进后退）
 		window.addEventListener("popstate", handleRouteChange);
 
-		// 初始加载时触发一次
 		handleRouteChange();
 
-		// 清理监听器
 		return () => {
 			observer.disconnect();
 			window.removeEventListener("popstate", handleRouteChange);

@@ -1,3 +1,5 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useBoolean } from "react-use";
 import { Icon } from "@/components/icon";
 import useLocale from "@/locales/use-locale";
 import { useRouter } from "@/routes/hooks";
@@ -6,8 +8,6 @@ import { Button } from "@/ui/button";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandSeparator } from "@/ui/command";
 import { ScrollArea } from "@/ui/scroll-area";
 import { Text } from "@/ui/typography";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useBoolean } from "react-use";
 import { useFilteredNavData } from "../dashboard/nav";
 
 interface SearchItem {
@@ -16,7 +16,7 @@ interface SearchItem {
 	path: string;
 }
 
-// 高亮文本组件
+// Highlights query matches inside suggestion text.
 const HighlightText = ({ text, query }: { text: string; query: string }) => {
 	if (!query) return <>{text}</>;
 

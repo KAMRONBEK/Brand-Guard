@@ -1,12 +1,11 @@
-import { themeVars } from "@/theme/theme.css";
-import { removePx, rgbAlpha } from "@/utils/theme";
 import type { ApexOptions } from "apexcharts";
 import { mergeDeepRight } from "ramda";
-
 import { useSettings } from "@/store/settingStore";
+import { themeVars } from "@/theme/theme.css";
 import { breakpointsTokens } from "@/theme/tokens/breakpoints";
 import { paletteColors, presetsColors } from "@/theme/tokens/color";
 import type { ThemeColorPresets, ThemeMode } from "@/types/enum";
+import { removePx, rgbAlpha } from "@/utils/theme";
 
 export function useChart(options: ApexOptions) {
 	const { themeColorPresets, themeMode } = useSettings();
@@ -52,14 +51,13 @@ const baseCharOptions = (themeMode: ThemeMode, themeColorPresets: ThemeColorPres
 			parentHeightOffset: 0,
 			foreColor: themeVars.colors.text.disabled,
 			fontFamily: themeVars.typography.fontFamily.openSans,
-			// 优化动画配置以提高响应式性能
+			// Tuned animations for smoother resize/reflow
 			animations: {
 				enabled: true,
 				speed: 360,
 				animateGradually: { enabled: true, delay: 120 },
 				dynamicAnimation: { enabled: true, speed: 360 },
 			},
-			// 启用快速响应式重绘
 			redrawOnParentResize: true,
 			redrawOnWindowResize: true,
 		},

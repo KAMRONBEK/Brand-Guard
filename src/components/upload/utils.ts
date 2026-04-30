@@ -15,8 +15,7 @@ const FORMAT_IMG = ["jpg", "jpeg", "gif", "bmp", "png", "svg"];
 const FORMAT_VIDEO = ["m4v", "avi", "mpg", "mp4", "webm"];
 
 /**
- * 获取文件格式
- * @param fileName
+ * Infer a coarse file category from the extension.
  */
 export function getFileFormat(fileName: string | undefined) {
 	let format: string | undefined;
@@ -61,8 +60,7 @@ export function getFileFormat(fileName: string | undefined) {
 }
 
 /**
- * 获取文件缩略图
- * @param fileName
+ * Pick an icon name for the inferred file category.
  */
 export function getFileThumb(fileName: string | undefined) {
 	let thumb: string | undefined;

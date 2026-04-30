@@ -1,17 +1,16 @@
-import { themeVars } from "@/theme/theme.css";
 import styled from "styled-components";
-
 import { ThemeMode } from "#/enum";
+import { themeVars } from "@/theme/theme.css";
 
 export const StyledCalendar = styled.div<{ $themeMode: ThemeMode }>`
   width: 100%;
   height: 100%;
   overflow: auto;
-  -ms-overflow-style: none; /* 适用于Internet Explorer, Edge */
-  scrollbar-width: none; /* 适用于Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
   overflow-y: scroll;
   &::-webkit-scrollbar {
-    display: none; /* 适用于Chrome、Safari和Opera */
+    display: none;
   }
   .fc {
     width: 100%;

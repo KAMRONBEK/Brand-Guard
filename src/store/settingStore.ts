@@ -1,8 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-
-import { FontFamilyPreset, typographyTokens } from "@/theme/tokens/typography";
 import { StorageEnum, ThemeColorPresets, ThemeLayout, ThemeMode } from "#/enum";
+import { FontFamilyPreset, typographyTokens } from "@/theme/tokens/typography";
 
 export type SettingsType = {
 	themeColorPresets: ThemeColorPresets;
@@ -19,7 +18,7 @@ export type SettingsType = {
 };
 type SettingStore = {
 	settings: SettingsType;
-	// 使用 actions 命名空间来存放所有的 action
+	// All imperative updates live under `actions`.
 	actions: {
 		setSettings: (settings: SettingsType) => void;
 		clearSettings: () => void;

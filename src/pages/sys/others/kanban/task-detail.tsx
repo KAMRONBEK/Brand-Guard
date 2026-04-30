@@ -1,3 +1,5 @@
+import dayjs from "dayjs";
+import styled from "styled-components";
 import { Icon } from "@/components/icon";
 import { themeVars } from "@/theme/theme.css";
 import { Avatar, AvatarImage } from "@/ui/avatar";
@@ -8,8 +10,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { Textarea } from "@/ui/textarea";
 import { ToggleGroup, ToggleGroupItem } from "@/ui/toggle-group";
 import { Text, Title } from "@/ui/typography";
-import dayjs from "dayjs";
-import styled from "styled-components";
 import { type Task, TaskPriority } from "./types";
 
 type Props = {

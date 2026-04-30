@@ -1,7 +1,3 @@
-import { Icon } from "@/components/icon";
-import { Button } from "@/ui/button";
-import { Input } from "@/ui/input";
-import { ScrollArea, ScrollBar } from "@/ui/scroll-area";
 import {
 	DndContext,
 	type DragEndEvent,
@@ -11,10 +7,14 @@ import {
 	useSensor,
 	useSensors,
 } from "@dnd-kit/core";
-import { SortableContext, arrayMove, horizontalListSortingStrategy } from "@dnd-kit/sortable";
+import { arrayMove, horizontalListSortingStrategy, SortableContext } from "@dnd-kit/sortable";
 import { faker } from "@faker-js/faker";
 import { useRef, useState } from "react";
 import { useEvent } from "react-use";
+import { Icon } from "@/components/icon";
+import { Button } from "@/ui/button";
+import { Input } from "@/ui/input";
+import { ScrollArea, ScrollBar } from "@/ui/scroll-area";
 import KanbanColumn from "./kanban-column";
 import KanbanTask from "./kanban-task";
 import { initialData } from "./task-utils";
@@ -38,7 +38,6 @@ export default function Kanban() {
 	const handleDragStart = (event: DragStartEvent) => {
 		const { active } = event;
 		setActiveId(active.id as string);
-		// 通过判断 id 格式来确定拖拽类型
 		setActiveType(active.id.toString().startsWith("task-") ? "task" : "column");
 	};
 
@@ -53,7 +52,6 @@ export default function Kanban() {
 
 		if (active.id !== over.id) {
 			if (activeType === "column") {
-				// 处理列的拖拽
 				const oldIndex = state.columnOrder.indexOf(active.id as string);
 				const newIndex = state.columnOrder.indexOf(over.id as string);
 
@@ -62,7 +60,6 @@ export default function Kanban() {
 					columnOrder: arrayMove(state.columnOrder, oldIndex, newIndex),
 				});
 			} else {
-				// 处理任务的拖拽
 				const activeColumn = Object.values(state.columns).find((col) => col.taskIds.includes(active.id as string));
 				const overColumn = Object.values(state.columns).find(
 					(col) => col.taskIds.includes(over.id as string) || col.id === over.id,
@@ -71,7 +68,6 @@ export default function Kanban() {
 				if (!activeColumn || !overColumn) return;
 
 				if (activeColumn === overColumn) {
-					// 同列内移动
 					const newTaskIds = arrayMove(
 						activeColumn.taskIds,
 						activeColumn.taskIds.indexOf(active.id as string),
@@ -89,7 +85,6 @@ export default function Kanban() {
 						},
 					});
 				} else {
-					// 跨列移动
 					const sourceTaskIds = activeColumn.taskIds.filter((id) => id !== active.id);
 					const destinationTaskIds = [...overColumn.taskIds];
 					const overTaskIndex = overColumn.taskIds.indexOf(over.id as string);

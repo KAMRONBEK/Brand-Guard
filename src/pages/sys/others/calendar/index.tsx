@@ -1,6 +1,3 @@
-import { down, useMediaQuery } from "@/hooks";
-import { useSettings } from "@/store/settingStore";
-import { Card, CardContent } from "@/ui/card";
 import { faker } from "@faker-js/faker";
 import type { DateSelectArg, EventClickArg, EventInput } from "@fullcalendar/core";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -10,6 +7,9 @@ import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import dayjs from "dayjs";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { down, useMediaQuery } from "@/hooks";
+import { useSettings } from "@/store/settingStore";
+import { Card, CardContent } from "@/ui/card";
 import CalendarEvent from "./calendar-event";
 import CalendarEventForm, { type CalendarEventFormFieldType } from "./calendar-event-form";
 import CalendarHeader, { type HandleMoveArg, type ViewType } from "./calendar-header";
@@ -140,7 +140,6 @@ export default function Calendar() {
 		if (start) newEvent.start = start.toDate();
 		if (end) newEvent.end = end.toDate();
 
-		// 刷新日历显示
 		oldEvent?.remove();
 		calendarApi.addEvent(newEvent);
 	};
@@ -162,7 +161,6 @@ export default function Calendar() {
 		if (start) newEvent.start = start.toDate();
 		if (end) newEvent.end = end.toDate();
 
-		// 刷新日历显示
 		calendarApi.addEvent(newEvent);
 	};
 	// delete event

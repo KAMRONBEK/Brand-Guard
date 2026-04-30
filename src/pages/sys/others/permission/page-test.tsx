@@ -1,5 +1,5 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { faker } from "@faker-js/faker";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 
 export default function PermissionPageTest() {
 	return (

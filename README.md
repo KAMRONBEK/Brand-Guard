@@ -8,8 +8,6 @@
 </p>
 </div>
 
-**English** | [中文](./README.zh-CN.md)
-
 ## Quick start
 
 ```bash
