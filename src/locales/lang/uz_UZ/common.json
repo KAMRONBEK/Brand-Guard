@@ -1,0 +1,22 @@
+{
+	"common": {
+		"okText": "OK",
+		"closeText": "Yopish",
+		"cancelText": "Bekor qilish",
+		"loadingText": "Yuklanmoqda...",
+		"saveText": "Saqlash",
+		"delText": "Oʻchirish",
+		"resetText": "Tiklash",
+		"searchText": "Qidiruv",
+		"queryText": "Qidiruv",
+
+		"inputText": "Qiymat kiriting",
+		"chooseText": "Tanlang",
+
+		"redo": "Yangilash",
+		"back": "Orqaga",
+
+		"light": "Yorugʻ",
+		"dark": "Qorongʻi"
+	}
+}

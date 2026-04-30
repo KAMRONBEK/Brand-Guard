@@ -1,31 +1,49 @@
+import dayjs from "dayjs";
 import i18n from "i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import { initReactI18next } from "react-i18next";
+import "dayjs/locale/en";
+import "dayjs/locale/ru";
+import "dayjs/locale/uz-latn";
 import { LocalEnum, StorageEnum } from "#/enum";
-import { getStringItem } from "@/utils/storage";
 import en_US from "./lang/en_US";
+import ru_RU from "./lang/ru_RU";
+import uz_UZ from "./lang/uz_UZ";
+import { APP_LOCALE_TO_DAYJS, APP_LOCALE_TO_HTML_LANG, mapBrowserLanguageToAppLocale } from "./map-browser-language";
 
-const stored = getStringItem(StorageEnum.I18N);
-const defaultLng = stored === LocalEnum.en_US ? stored : LocalEnum.en_US;
+function syncLocaleSideEffects(lng: string | null | undefined) {
+	const appLocale = lng ? mapBrowserLanguageToAppLocale(lng) : LocalEnum.en_US;
+	document.documentElement.lang = APP_LOCALE_TO_HTML_LANG[appLocale];
+	dayjs.locale(APP_LOCALE_TO_DAYJS[appLocale]);
+}
 
-// Set HTML lang early so the browser does not prompt to translate when it mismatches OS language.
-document.documentElement.lang = "en";
+i18n.on("languageChanged", syncLocaleSideEffects);
 
 i18n
 	.use(LanguageDetector)
 	.use(initReactI18next)
 	.init({
-		debug: true,
-		lng: defaultLng,
+		debug: false,
 		fallbackLng: LocalEnum.en_US,
-		supportedLngs: [LocalEnum.en_US],
+		supportedLngs: [LocalEnum.en_US, LocalEnum.ru_RU, LocalEnum.uz_UZ],
 		nonExplicitSupportedLngs: false,
 		interpolation: {
 			escapeValue: false,
 		},
+		detection: {
+			order: ["localStorage", "navigator"],
+			caches: ["localStorage"],
+			lookupLocalStorage: StorageEnum.I18N,
+			convertDetectedLanguage: (lng) => mapBrowserLanguageToAppLocale(lng),
+		},
 		resources: {
 			en_US: { translation: en_US },
+			ru_RU: { translation: ru_RU },
+			uz_UZ: { translation: uz_UZ },
 		},
+	})
+	.then(() => {
+		syncLocaleSideEffects(i18n.resolvedLanguage);
 	});
 
 export const { t } = i18n;

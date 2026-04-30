@@ -38,6 +38,8 @@ export enum ThemeColorPresets {
 
 export enum LocalEnum {
 	en_US = "en_US",
+	ru_RU = "ru_RU",
+	uz_UZ = "uz_UZ",
 }
 
 export enum MultiTabOperation {

@@ -1,0 +1,22 @@
+{
+	"common": {
+		"okText": "ОК",
+		"closeText": "Закрыть",
+		"cancelText": "Отмена",
+		"loadingText": "Загрузка...",
+		"saveText": "Сохранить",
+		"delText": "Удалить",
+		"resetText": "Сбросить",
+		"searchText": "Поиск",
+		"queryText": "Поиск",
+
+		"inputText": "Введите значение",
+		"chooseText": "Выберите",
+
+		"redo": "Обновить",
+		"back": "Назад",
+
+		"light": "Светлая",
+		"dark": "Тёмная"
+	}
+}
