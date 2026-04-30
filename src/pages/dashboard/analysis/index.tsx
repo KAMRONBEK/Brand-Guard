@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { commentAnalyzeService, commentCommentsService } from "@/api/services/comment";
 import { Chart, useChart } from "@/components/chart";
 import Icon from "@/components/icon/icon";
@@ -41,6 +42,7 @@ function extractCommentsRows(payload: unknown): Record<string, unknown>[] {
 }
 
 export default function AnalysisPage() {
+	const { t } = useTranslation();
 	const [postUrl, setPostUrl] = useState("");
 	const [sentiment, setSentiment] = useState<SentimentFilter | "all">("all");
 	const [page, setPage] = useState(1);
@@ -103,36 +105,36 @@ export default function AnalysisPage() {
 		<div className="flex flex-col gap-4 w-full">
 			<div>
 				<Title as="h2" className="text-xl font-semibold">
-					Comment intelligence
+					{t("sys.analysis.title")}
 				</Title>
 				<Text variant="body2" className="text-muted-foreground">
-					Fetch and inspect stored comments, sentiment stats, and exports for a post URL.
+					{t("sys.analysis.subtitle")}
 				</Text>
 			</div>
 
 			<Tabs defaultValue="post" className="w-full">
 				<TabsList>
-					<TabsTrigger value="post">Post</TabsTrigger>
-					<TabsTrigger value="account">Account</TabsTrigger>
+					<TabsTrigger value="post">{t("sys.analysis.tabPost")}</TabsTrigger>
+					<TabsTrigger value="account">{t("sys.analysis.tabAccount")}</TabsTrigger>
 				</TabsList>
 
 				<TabsContent value="post" className="flex flex-col gap-4">
 					<Card>
 						<CardHeader>
-							<CardTitle>Post URL</CardTitle>
+							<CardTitle>{t("sys.analysis.postUrlCardTitle")}</CardTitle>
 						</CardHeader>
 						<CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end">
 							<div className="flex-1 space-y-2">
-								<Label htmlFor="pu">Instagram post URL</Label>
+								<Label htmlFor="pu">{t("sys.analysis.instagramPostUrlLabel")}</Label>
 								<Input
 									id="pu"
 									value={postUrl}
 									onChange={(e) => setPostUrl(e.target.value)}
-									placeholder="https://www.instagram.com/p/..."
+									placeholder={t("sys.analysis.postUrlPlaceholder")}
 								/>
 							</div>
 							<Button disabled={!postUrl.trim() || fetchMutation.isPending} onClick={() => fetchMutation.mutate()}>
-								{fetchMutation.isPending ? "Fetching…" : "Fetch & analyze"}
+								{fetchMutation.isPending ? t("sys.analysis.fetching") : t("sys.analysis.fetchAnalyze")}
 							</Button>
 						</CardContent>
 					</Card>
@@ -140,7 +142,7 @@ export default function AnalysisPage() {
 					<div className="grid gap-4 lg:grid-cols-2">
 						<Card>
 							<CardHeader>
-								<CardTitle>GET /api/comments/stats</CardTitle>
+								<CardTitle>{t("sys.analysis.statsCardTitle")}</CardTitle>
 							</CardHeader>
 							<CardContent className="space-y-3">
 								{chartData.labels.length > 0 ? (
@@ -148,11 +150,11 @@ export default function AnalysisPage() {
 										type="bar"
 										height={260}
 										options={chartOptions}
-										series={[{ name: "count", data: chartData.values }]}
+										series={[{ name: t("sys.analysis.chartSeriesName"), data: chartData.values }]}
 									/>
 								) : (
 									<Text variant="caption" className="text-muted-foreground">
-										Enter a post URL and fetch or load stats.
+										{t("sys.analysis.statsEmpty")}
 									</Text>
 								)}
 								<pre className="text-xs bg-muted rounded-md p-3 max-h-48 overflow-auto border">
@@ -163,26 +165,26 @@ export default function AnalysisPage() {
 
 						<Card>
 							<CardHeader>
-								<CardTitle>GET /api/comments</CardTitle>
+								<CardTitle>{t("sys.analysis.commentsCardTitle")}</CardTitle>
 							</CardHeader>
 							<CardContent className="flex flex-col gap-3">
 								<div className="grid gap-3 sm:grid-cols-3">
 									<div className="space-y-2">
-										<Label>sentiment</Label>
+										<Label>{t("sys.analysis.sentimentLabel")}</Label>
 										<Select value={sentiment} onValueChange={(v) => setSentiment(v as SentimentFilter | "all")}>
 											<SelectTrigger>
 												<SelectValue />
 											</SelectTrigger>
 											<SelectContent>
-												<SelectItem value="all">all</SelectItem>
-												<SelectItem value="positive">positive</SelectItem>
-												<SelectItem value="negative">negative</SelectItem>
-												<SelectItem value="neutral">neutral</SelectItem>
+												<SelectItem value="all">{t("sys.analysis.sentimentAll")}</SelectItem>
+												<SelectItem value="positive">{t("sys.analysis.sentimentPositive")}</SelectItem>
+												<SelectItem value="negative">{t("sys.analysis.sentimentNegative")}</SelectItem>
+												<SelectItem value="neutral">{t("sys.analysis.sentimentNeutral")}</SelectItem>
 											</SelectContent>
 										</Select>
 									</div>
 									<div className="space-y-2">
-										<Label htmlFor="pg">page</Label>
+										<Label htmlFor="pg">{t("sys.analysis.pageLabel")}</Label>
 										<Input
 											id="pg"
 											type="number"
@@ -192,7 +194,7 @@ export default function AnalysisPage() {
 										/>
 									</div>
 									<div className="space-y-2">
-										<Label htmlFor="lm">limit</Label>
+										<Label htmlFor="lm">{t("sys.analysis.limitLabel")}</Label>
 										<Input
 											id="lm"
 											type="number"
@@ -209,7 +211,7 @@ export default function AnalysisPage() {
 										disabled={!postUrl.trim()}
 										onClick={() => void commentsQuery.refetch()}
 									>
-										<Icon icon="mdi:refresh" size={16} /> Refresh list
+										<Icon icon="mdi:refresh" size={16} /> {t("sys.analysis.refreshList")}
 									</Button>
 									<Button
 										size="sm"
@@ -217,29 +219,29 @@ export default function AnalysisPage() {
 										disabled={!postUrl.trim() || exportMutation.isPending}
 										onClick={() => exportMutation.mutate("json")}
 									>
-										Export JSON
+										{t("sys.analysis.exportJson")}
 									</Button>
 									<Button
 										size="sm"
 										disabled={!postUrl.trim() || exportMutation.isPending}
 										onClick={() => exportMutation.mutate("csv")}
 									>
-										Export CSV
+										{t("sys.analysis.exportCsv")}
 									</Button>
 								</div>
 								<div className="overflow-x-auto rounded-md border">
 									<table className="w-full text-sm">
 										<thead className="bg-muted">
 											<tr>
-												<th className="p-2 text-left">#</th>
-												<th className="p-2 text-left">Preview</th>
+												<th className="p-2 text-left">{t("sys.analysis.tableIndex")}</th>
+												<th className="p-2 text-left">{t("sys.analysis.tablePreview")}</th>
 											</tr>
 										</thead>
 										<tbody>
 											{rows.length === 0 ? (
 												<tr>
 													<td colSpan={2} className="p-4 text-muted-foreground">
-														No rows parsed — raw payload below.
+														{t("sys.analysis.noRows")}
 													</td>
 												</tr>
 											) : (
@@ -277,22 +279,27 @@ export default function AnalysisPage() {
 				<TabsContent value="account">
 					<Card>
 						<CardHeader>
-							<CardTitle>POST /api/account/analyze</CardTitle>
+							<CardTitle>{t("sys.analysis.accountCardTitle")}</CardTitle>
 							<Text variant="caption" className="text-muted-foreground">
-								Analyze latest posts for an Instagram username.
+								{t("sys.analysis.accountCardHint")}
 							</Text>
 						</CardHeader>
 						<CardContent className="flex flex-col gap-4 max-w-xl">
 							<div className="space-y-2">
-								<Label htmlFor="un">username (without @)</Label>
-								<Input id="un" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="instagram" />
+								<Label htmlFor="un">{t("sys.analysis.usernameLabel")}</Label>
+								<Input
+									id="un"
+									value={username}
+									onChange={(e) => setUsername(e.target.value)}
+									placeholder={t("sys.analysis.usernamePlaceholder")}
+								/>
 							</div>
 							<div className="space-y-2">
-								<Label htmlFor="mx">max_posts</Label>
+								<Label htmlFor="mx">{t("sys.analysis.maxPostsLabel")}</Label>
 								<Input id="mx" type="number" value={maxPosts} onChange={(e) => setMaxPosts(Number(e.target.value))} />
 							</div>
 							<Button disabled={!username.trim() || analyzeMutation.isPending} onClick={() => analyzeMutation.mutate()}>
-								{analyzeMutation.isPending ? "Analyzing…" : "Run account analyze"}
+								{analyzeMutation.isPending ? t("sys.analysis.analyzing") : t("sys.analysis.runAccountAnalyze")}
 							</Button>
 							<pre className="text-xs bg-muted rounded-md p-3 max-h-[480px] overflow-auto border">
 								{JSON.stringify(serializePreview(analyzeMutation.data, analyzeMutation.error), null, 2)}

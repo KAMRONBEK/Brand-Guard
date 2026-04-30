@@ -97,11 +97,14 @@
 			"i18n": "Tillar",
 			"icon": "Ikonkalar",
 			"iframe": "Iframe",
+			"frame": "Freym",
 			"kanban": "Kanban",
 			"label": "Element yorligʻi",
-			"permission": "Ruxsatlar",
-			"permission.page_test": "Sahifa ruxsati testi",
 			"management": "Boshqaruv",
+			"permission_demo": {
+				"index": "Ruxsatlar (demo)",
+				"page_test": "Sahifa ruxsati testi"
+			},
 			"markdown": "Markdown",
 			"menulevel": {
 				"1a": "Menyu darajasi 1a",
@@ -163,6 +166,105 @@
 			"closeRight": "Oʻngdan yopish",
 			"fullscreen": "Toʻliq ekran",
 			"refresh": "Yangilash"
+		},
+		"workbench": {
+			"title": "Operatsiyalar",
+			"subtitle": "Instagram Comment Reader — qidiruv, sarlavha aniqlash, izohlarni joylashtirish va kampaniyalar.",
+			"healthFailed": "Health tekshiruvi muvaffaqiyatsiz",
+			"refreshHealth": "Health yangilash",
+			"pausePolling": "Soʻrovlarni toʻxtatish",
+			"resumePolling": "Soʻrovlarni davom ettirish",
+			"tabs": {
+				"search": "Kalit soʻz boʻyicha qidiruv",
+				"caption": "Sarlavha boʻyicha qidiruv",
+				"post": "Post izohlari",
+				"campaign": "Kampaniya"
+			},
+			"search": {
+				"cardTitle": "POST /api/search",
+				"hint": "Ogʻir operatsiya — bir necha daqiqa davom etishi mumkin.",
+				"keywordLabel": "Kalit soʻzlar (vergul bilan ajratish mumkin)",
+				"keywordPlaceholder": "brend,raqib",
+				"searchTypeLabel": "search_type",
+				"searchTypePlaceholder": "all | account | hashtag",
+				"maxPostsLabel": "max_posts",
+				"periodHoursLabel": "period_hours",
+				"analyzeLabel": "analyze",
+				"run": "Qidiruvni ishga tushirish",
+				"running": "Bajarilmoqda…"
+			},
+			"caption": {
+				"cardTitle": "POST /api/search/caption",
+				"keywordLabel": "keyword",
+				"maxPostsLabel": "max_posts",
+				"periodHoursLabel": "period_hours",
+				"run": "Sarlavha qidiruvi",
+				"running": "Bajarilmoqda…"
+			},
+			"post": {
+				"cardTitle": "POST /api/comments/post",
+				"postUrlLabel": "Post URL",
+				"postUrlPlaceholder": "https://www.instagram.com/p/...",
+				"commentsLabel": "Izohlar (har bir qatorda bittadan)",
+				"numBotsLabel": "num_bots",
+				"periodSecondsLabel": "period_seconds",
+				"run": "Izohlarni joylashtirish",
+				"posting": "Joylanmoqda…"
+			},
+			"campaign": {
+				"cardTitle": "POST /api/campaign",
+				"hint": "Uzoq muddatli jarayon — ehtiyotkorlik bilan ishlating.",
+				"keywordLabel": "keyword",
+				"searchTypeLabel": "search_type",
+				"toneLabel": "tone",
+				"maxPostsLabel": "max_posts",
+				"numBotsLabel": "num_bots",
+				"periodSecondsLabel": "period_seconds",
+				"periodHoursLabel": "period_hours",
+				"generateCountLabel": "generate_count",
+				"optionalCommentsLabel": "Ixtiyoriy qatʼiy izohlar (har bir qatorda bittadan)",
+				"run": "Kampaniyani ishga tushirish",
+				"running": "Kampaniya bajarilmoqda…"
+			}
+		},
+		"analysis": {
+			"title": "Izohlar tahlili",
+			"subtitle": "Saqlangan izohlarni, ton statistikasini va post URL boʻyicha eksportni yuklash va koʻrish.",
+			"tabPost": "Post",
+			"tabAccount": "Hisob",
+			"postUrlCardTitle": "Post URL",
+			"instagramPostUrlLabel": "Instagram post URL",
+			"postUrlPlaceholder": "https://www.instagram.com/p/...",
+			"fetchAnalyze": "Yuklash va tahlil",
+			"fetching": "Yuklanmoqda…",
+			"statsCardTitle": "GET /api/comments/stats",
+			"statsEmpty": "Post URL kiriting va yuklang yoki statistikani oching.",
+			"commentsCardTitle": "GET /api/comments",
+			"sentimentLabel": "sentiment",
+			"sentimentAll": "all",
+			"sentimentPositive": "positive",
+			"sentimentNegative": "negative",
+			"sentimentNeutral": "neutral",
+			"pageLabel": "page",
+			"limitLabel": "limit",
+			"refreshList": "Roʻyxatni yangilash",
+			"exportJson": "JSON eksport",
+			"exportCsv": "CSV eksport",
+			"tableIndex": "#",
+			"tablePreview": "Oldindan koʻrish",
+			"noRows": "Qatorlar ajratilmadi — xom javob pastda.",
+			"accountCardTitle": "POST /api/account/analyze",
+			"accountCardHint": "Instagram foydalanuvchi nomi boʻyicha soʻnggi postlarni tahlil qilish.",
+			"usernameLabel": "username (@siz)",
+			"usernamePlaceholder": "instagram",
+			"maxPostsLabel": "max_posts",
+			"runAccountAnalyze": "Hisobni tahlil qilish",
+			"analyzing": "Tahlil…",
+			"chartSeriesName": "soni"
+		},
+		"i18nPage": {
+			"cardTitle": "Tillar",
+			"body": "Ingliz, rus va oʻzbek tillari mavjud. Birinchi tashrifda brauzer tili qoʻllab-quvvatlansa, u ishlatiladi; aks holda ingliz tili. Til tanlangach, u localStorage-da {{key}} kaliti ostida saqlanadi."
 		}
 	}
 }

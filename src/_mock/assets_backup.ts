@@ -332,7 +332,7 @@ export const DB_MENU: Menu[] = [
 	{
 		id: "permission",
 		parentId: "group_others",
-		name: "sys.nav.permission",
+		name: "sys.nav.permission_demo.index",
 		code: "permission",
 		icon: "mingcute:safe-lock-fill",
 		type: MENU,
@@ -342,7 +342,7 @@ export const DB_MENU: Menu[] = [
 	{
 		id: "permission_page_test",
 		parentId: "group_others",
-		name: "sys.nav.permission.page_test",
+		name: "sys.nav.permission_demo.page_test",
 		code: "permission:page_test",
 		icon: "mingcute:safe-lock-fill",
 		type: MENU,

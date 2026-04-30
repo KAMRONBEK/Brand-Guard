@@ -97,11 +97,14 @@
 			"i18n": "Multi Language",
 			"icon": "Icon",
 			"iframe": "Iframe",
+			"frame": "Frame",
 			"kanban": "Kanban",
 			"label": "Item Label",
-			"permission": "Permission",
-			"permission.page_test": "Page Permission Test",
 			"management": "Management",
+			"permission_demo": {
+				"index": "Permission",
+				"page_test": "Page Permission Test"
+			},
 			"markdown": "Markdown",
 			"menulevel": {
 				"1a": "Menu Level 1a",
@@ -163,6 +166,105 @@
 			"closeRight": "Close Right",
 			"fullscreen": "FullScreen",
 			"refresh": "Refresh"
+		},
+		"workbench": {
+			"title": "Operations",
+			"subtitle": "Instagram Comment Reader — search, caption discovery, posting, and campaigns.",
+			"healthFailed": "Health failed",
+			"refreshHealth": "Refresh health",
+			"pausePolling": "Pause polling",
+			"resumePolling": "Resume polling",
+			"tabs": {
+				"search": "Keyword search",
+				"caption": "Caption search",
+				"post": "Post comments",
+				"campaign": "Campaign"
+			},
+			"search": {
+				"cardTitle": "POST /api/search",
+				"hint": "Heavy operation — can take minutes.",
+				"keywordLabel": "Keyword (comma-separated allowed)",
+				"keywordPlaceholder": "brand,competitor",
+				"searchTypeLabel": "search_type",
+				"searchTypePlaceholder": "all | account | hashtag",
+				"maxPostsLabel": "max_posts",
+				"periodHoursLabel": "period_hours",
+				"analyzeLabel": "analyze",
+				"run": "Run search",
+				"running": "Running…"
+			},
+			"caption": {
+				"cardTitle": "POST /api/search/caption",
+				"keywordLabel": "keyword",
+				"maxPostsLabel": "max_posts",
+				"periodHoursLabel": "period_hours",
+				"run": "Run caption search",
+				"running": "Running…"
+			},
+			"post": {
+				"cardTitle": "POST /api/comments/post",
+				"postUrlLabel": "Post URL",
+				"postUrlPlaceholder": "https://www.instagram.com/p/...",
+				"commentsLabel": "Comments (one per line)",
+				"numBotsLabel": "num_bots",
+				"periodSecondsLabel": "period_seconds",
+				"run": "Post comments",
+				"posting": "Posting…"
+			},
+			"campaign": {
+				"cardTitle": "POST /api/campaign",
+				"hint": "Long-running orchestration — use with care.",
+				"keywordLabel": "keyword",
+				"searchTypeLabel": "search_type",
+				"toneLabel": "tone",
+				"maxPostsLabel": "max_posts",
+				"numBotsLabel": "num_bots",
+				"periodSecondsLabel": "period_seconds",
+				"periodHoursLabel": "period_hours",
+				"generateCountLabel": "generate_count",
+				"optionalCommentsLabel": "Optional fixed comments (one per line)",
+				"run": "Run campaign",
+				"running": "Running campaign…"
+			}
+		},
+		"analysis": {
+			"title": "Comment intelligence",
+			"subtitle": "Fetch and inspect stored comments, sentiment stats, and exports for a post URL.",
+			"tabPost": "Post",
+			"tabAccount": "Account",
+			"postUrlCardTitle": "Post URL",
+			"instagramPostUrlLabel": "Instagram post URL",
+			"postUrlPlaceholder": "https://www.instagram.com/p/...",
+			"fetchAnalyze": "Fetch & analyze",
+			"fetching": "Fetching…",
+			"statsCardTitle": "GET /api/comments/stats",
+			"statsEmpty": "Enter a post URL and fetch or load stats.",
+			"commentsCardTitle": "GET /api/comments",
+			"sentimentLabel": "sentiment",
+			"sentimentAll": "all",
+			"sentimentPositive": "positive",
+			"sentimentNegative": "negative",
+			"sentimentNeutral": "neutral",
+			"pageLabel": "page",
+			"limitLabel": "limit",
+			"refreshList": "Refresh list",
+			"exportJson": "Export JSON",
+			"exportCsv": "Export CSV",
+			"tableIndex": "#",
+			"tablePreview": "Preview",
+			"noRows": "No rows parsed — raw payload below.",
+			"accountCardTitle": "POST /api/account/analyze",
+			"accountCardHint": "Analyze latest posts for an Instagram username.",
+			"usernameLabel": "username (without @)",
+			"usernamePlaceholder": "instagram",
+			"maxPostsLabel": "max_posts",
+			"runAccountAnalyze": "Run account analyze",
+			"analyzing": "Analyzing…",
+			"chartSeriesName": "count"
+		},
+		"i18nPage": {
+			"cardTitle": "Multi-language",
+			"body": "English, Russian, and Uzbek are available. On the first visit the app uses your browser language when it matches a supported locale; otherwise English is used. After you pick a language, it is persisted in localStorage under the key {{key}}."
 		}
 	}
 }

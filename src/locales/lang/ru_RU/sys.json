@@ -97,11 +97,14 @@
 			"i18n": "Языки",
 			"icon": "Иконки",
 			"iframe": "Iframe",
+			"frame": "Фрейм",
 			"kanban": "Канбан",
 			"label": "Метка пункта",
-			"permission": "Права",
-			"permission.page_test": "Тест прав на странице",
 			"management": "Управление",
+			"permission_demo": {
+				"index": "Права доступа",
+				"page_test": "Тест прав на странице"
+			},
 			"markdown": "Markdown",
 			"menulevel": {
 				"1a": "Уровень меню 1a",
@@ -163,6 +166,105 @@
 			"closeRight": "Закрыть справа",
 			"fullscreen": "Полный экран",
 			"refresh": "Обновить"
+		},
+		"workbench": {
+			"title": "Операции",
+			"subtitle": "Instagram Comment Reader — поиск, подписи к медиа, публикация комментариев и кампании.",
+			"healthFailed": "Проверка здоровья не удалась",
+			"refreshHealth": "Обновить проверку",
+			"pausePolling": "Приостановить опрос",
+			"resumePolling": "Возобновить опрос",
+			"tabs": {
+				"search": "Поиск по ключу",
+				"caption": "Поиск по подписи",
+				"post": "Комментарии к посту",
+				"campaign": "Кампания"
+			},
+			"search": {
+				"cardTitle": "POST /api/search",
+				"hint": "Тяжёлая операция — может занять несколько минут.",
+				"keywordLabel": "Ключевые слова (можно через запятую)",
+				"keywordPlaceholder": "бренд,конкурент",
+				"searchTypeLabel": "search_type",
+				"searchTypePlaceholder": "all | account | hashtag",
+				"maxPostsLabel": "max_posts",
+				"periodHoursLabel": "period_hours",
+				"analyzeLabel": "analyze",
+				"run": "Запустить поиск",
+				"running": "Выполняется…"
+			},
+			"caption": {
+				"cardTitle": "POST /api/search/caption",
+				"keywordLabel": "keyword",
+				"maxPostsLabel": "max_posts",
+				"periodHoursLabel": "period_hours",
+				"run": "Поиск по подписи",
+				"running": "Выполняется…"
+			},
+			"post": {
+				"cardTitle": "POST /api/comments/post",
+				"postUrlLabel": "URL поста",
+				"postUrlPlaceholder": "https://www.instagram.com/p/...",
+				"commentsLabel": "Комментарии (по одному на строку)",
+				"numBotsLabel": "num_bots",
+				"periodSecondsLabel": "period_seconds",
+				"run": "Опубликовать комментарии",
+				"posting": "Публикация…"
+			},
+			"campaign": {
+				"cardTitle": "POST /api/campaign",
+				"hint": "Долгая фоновая задача — используйте осторожно.",
+				"keywordLabel": "keyword",
+				"searchTypeLabel": "search_type",
+				"toneLabel": "tone",
+				"maxPostsLabel": "max_posts",
+				"numBotsLabel": "num_bots",
+				"periodSecondsLabel": "period_seconds",
+				"periodHoursLabel": "period_hours",
+				"generateCountLabel": "generate_count",
+				"optionalCommentsLabel": "Необязательные фиксированные комментарии (по одному на строку)",
+				"run": "Запустить кампанию",
+				"running": "Кампания выполняется…"
+			}
+		},
+		"analysis": {
+			"title": "Аналитика комментариев",
+			"subtitle": "Загрузка и просмотр сохранённых комментариев, статистики тональности и экспорт по URL поста.",
+			"tabPost": "Пост",
+			"tabAccount": "Аккаунт",
+			"postUrlCardTitle": "URL поста",
+			"instagramPostUrlLabel": "URL поста Instagram",
+			"postUrlPlaceholder": "https://www.instagram.com/p/...",
+			"fetchAnalyze": "Загрузить и проанализировать",
+			"fetching": "Загрузка…",
+			"statsCardTitle": "GET /api/comments/stats",
+			"statsEmpty": "Введите URL поста и выполните загрузку или откройте статистику.",
+			"commentsCardTitle": "GET /api/comments",
+			"sentimentLabel": "sentiment",
+			"sentimentAll": "all",
+			"sentimentPositive": "positive",
+			"sentimentNegative": "negative",
+			"sentimentNeutral": "neutral",
+			"pageLabel": "page",
+			"limitLabel": "limit",
+			"refreshList": "Обновить список",
+			"exportJson": "Экспорт JSON",
+			"exportCsv": "Экспорт CSV",
+			"tableIndex": "#",
+			"tablePreview": "Превью",
+			"noRows": "Строк не разобрано — сырой ответ ниже.",
+			"accountCardTitle": "POST /api/account/analyze",
+			"accountCardHint": "Анализ последних постов по имени пользователя Instagram.",
+			"usernameLabel": "username (без @)",
+			"usernamePlaceholder": "instagram",
+			"maxPostsLabel": "max_posts",
+			"runAccountAnalyze": "Анализ аккаунта",
+			"analyzing": "Анализ…",
+			"chartSeriesName": "кол-во"
+		},
+		"i18nPage": {
+			"cardTitle": "Языки",
+			"body": "Доступны английский, русский и узбекский. При первом визите используется язык браузера, если он поддерживается; иначе — английский. После выбора язык сохраняется в localStorage под ключом {{key}}."
 		}
 	}
 }

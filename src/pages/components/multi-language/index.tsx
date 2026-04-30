@@ -1,10 +1,13 @@
+import { StorageEnum } from "#/enum";
 import { Icon } from "@/components/icon";
 import useLocale, { LANGUAGE_MAP } from "@/locales/use-locale";
 import { themeVars } from "@/theme/theme.css";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
+
 export default function MultiLanguagePage() {
 	const {
+		t,
 		setLocale,
 		locale,
 		language: { icon, label },
@@ -26,14 +29,10 @@ export default function MultiLanguagePage() {
 			</Button>
 			<Card>
 				<CardHeader>
-					<CardTitle>Multi-language</CardTitle>
+					<CardTitle>{t("sys.i18nPage.cardTitle")}</CardTitle>
 				</CardHeader>
 				<CardContent className="flex flex-col gap-4">
-					<p className="text-sm text-muted-foreground">
-						English, Russian, and Uzbek are available. On the first visit the app uses your browser language when it
-						matches a supported locale; otherwise English is used. After you pick a language, it is stored in{" "}
-						<code className="font-mono">localStorage</code> under <code className="font-mono">i18nextLng</code>.
-					</p>
+					<p className="text-sm text-muted-foreground">{t("sys.i18nPage.body", { key: StorageEnum.I18N })}</p>
 					<div className="flex flex-wrap gap-2">
 						{localeOptions.map((item) => (
 							<Button
