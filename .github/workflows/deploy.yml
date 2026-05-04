@@ -1,28 +1,47 @@
 # Deploys the built SPA to the tdev server over SSH.
 #
+# Strategy (mirrors the comment-reader deploy):
+#   1. Build the SPA on the runner.
+#   2. Package dist/ as a tarball artifact.
+#   3. scp the tarball to /tmp on the server.
+#   4. ssh in and run a controlled remote script that:
+#        - extracts into $DEPLOY_PATH/releases/<timestamp>/
+#        - atomically flips $DEPLOY_PATH/current -> releases/<timestamp>
+#        - prunes old releases (keeps last 5)
+#
+# This deliberately does NOT use `rsync --delete`. The remote script only
+# writes inside $DEPLOY_PATH/releases/* and updates a single symlink, so
+# there is no command that can wipe unrelated files.
+#
+# One-time server setup required:
+#   - Point your webserver (nginx/apache/caddy) at $DEPLOY_PATH/current/
+#     instead of $DEPLOY_PATH/ directly. Example for nginx:
+#         root /var/www/brand-guard/current;
+#
 # Required repository secrets:
-#   SSH_HOST        - hostname or IP of tdev (e.g. tdev.example.com)
+#   SSH_HOST        - hostname or IP of tdev
 #   SSH_USER        - SSH username on tdev
 #   SSH_PRIVATE_KEY - private key (PEM) authorized on tdev for SSH_USER
 #   SSH_PORT        - (optional) SSH port; defaults to 22
-#   DEPLOY_PATH     - absolute path on tdev to sync dist/ into
-#                     (e.g. /var/www/brand-guard)
+#   DEPLOY_PATH     - absolute path on tdev (e.g. /var/www/brand-guard).
+#                     Must be a dedicated directory for this app.
 
 name: Deploy to tdev
 
 on:
   push:
     branches: [prod]
+  workflow_dispatch:
 
 concurrency:
   group: deploy-tdev
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  build:
+    name: Build & package
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,25 +63,159 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Verify build output
+        run: |
+          set -euo pipefail
+          if [ ! -d dist ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
+            echo "ERROR: dist/ is missing or empty. Refusing to package an empty release."
+            exit 1
+          fi
+          if [ ! -f dist/index.html ]; then
+            echo "ERROR: dist/index.html not found. The SPA build looks broken."
+            exit 1
+          fi
+
+      - name: Package release tarball
+        run: tar -czf release.tar.gz -C dist .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release.tar.gz
+          retention-days: 7
+
+  deploy:
+    name: Deploy to tdev
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/prod' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release
+
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
+          set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_deploy
+          # strip any stray CR characters from a copy/paste off Windows
+          sed -i 's/\r$//' ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
 
-      - name: Deploy dist/ to tdev via rsync
+          echo "--- key metadata (no secrets printed) ---"
+          head -1 ~/.ssh/id_deploy
+          tail -1 ~/.ssh/id_deploy
+          wc -l ~/.ssh/id_deploy
+          ssh-keygen -y -f ~/.ssh/id_deploy > ~/.ssh/id_deploy.pub || {
+            echo "ERROR: ssh-keygen could not derive the public key. The private key is malformed or passphrase-protected."
+            exit 1
+          }
+          echo "derived pubkey fingerprint:"
+          ssh-keygen -lf ~/.ssh/id_deploy.pub
+
+          echo "--- ssh-keyscan ${SSH_HOST}:${SSH_PORT:-22} ---"
+          ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          wc -l ~/.ssh/known_hosts
+
+      - name: Upload release to server
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          set -euo pipefail
+          scp -P "${SSH_PORT:-22}" -i ~/.ssh/id_deploy \
+            -o ConnectTimeout=15 \
+            release.tar.gz \
+            "${SSH_USER}@${SSH_HOST}:/tmp/brand-guard-release.tar.gz"
+
+      - name: Install release atomically
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          rsync -avz --delete \
-            -e "ssh -i ~/.ssh/id_ed25519 -p ${SSH_PORT:-22} -o StrictHostKeyChecking=yes" \
-            dist/ "$SSH_USER@$SSH_HOST:$DEPLOY_PATH/"
+          set -euo pipefail
+
+          if [ -z "${DEPLOY_PATH:-}" ]; then
+            echo "ERROR: DEPLOY_PATH secret is empty."; exit 1
+          fi
+
+          ssh -p "${SSH_PORT:-22}" -i ~/.ssh/id_deploy \
+            "${SSH_USER}@${SSH_HOST}" \
+            "DEPLOY_PATH='${DEPLOY_PATH}' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          # --- Safety guards on the server side ---
+          if [ -z "${DEPLOY_PATH:-}" ]; then
+            echo "ERROR: DEPLOY_PATH is empty on the server."; exit 1
+          fi
+          case "$DEPLOY_PATH" in
+            /*) ;;
+            *) echo "ERROR: DEPLOY_PATH ($DEPLOY_PATH) must be absolute."; exit 1 ;;
+          esac
+          case "$DEPLOY_PATH" in
+            /|/root|/root/|/home|/home/|/var|/var/|/var/www|/var/www/|/etc|/etc/|/usr|/usr/|/bin|/bin/|/sbin|/sbin/|/opt|/opt/|/srv|/srv/|/tmp|/tmp/)
+              echo "ERROR: DEPLOY_PATH ($DEPLOY_PATH) is too broad."
+              exit 1
+              ;;
+          esac
+
+          TARBALL=/tmp/brand-guard-release.tar.gz
+          if [ ! -s "$TARBALL" ]; then
+            echo "ERROR: $TARBALL is missing or empty."; exit 1
+          fi
+
+          mkdir -p "$DEPLOY_PATH/releases"
+
+          STAMP="$(date -u +%Y%m%d-%H%M%S)"
+          NEW_RELEASE="$DEPLOY_PATH/releases/$STAMP"
+          mkdir -p "$NEW_RELEASE"
+
+          # Extract into the new release dir only.
+          tar -xzf "$TARBALL" -C "$NEW_RELEASE"
+
+          # Sanity-check the new release before flipping the symlink.
+          if [ ! -f "$NEW_RELEASE/index.html" ]; then
+            echo "ERROR: index.html not found in extracted release. Aborting."
+            rm -rf "$NEW_RELEASE"
+            exit 1
+          fi
+
+          # Atomic symlink swap via temp + mv -T (atomic on POSIX).
+          TMP_LINK="$DEPLOY_PATH/current.tmp.$$"
+          ln -s "releases/$STAMP" "$TMP_LINK"
+          mv -Tf "$TMP_LINK" "$DEPLOY_PATH/current"
+
+          echo "Activated release: $STAMP"
+          ls -l "$DEPLOY_PATH/current"
+
+          # Prune old releases, keep the 5 most recent.
+          cd "$DEPLOY_PATH/releases"
+          ls -1t | tail -n +6 | while read -r OLD; do
+            [ -n "$OLD" ] || continue
+            # Never delete the active release (paranoia).
+            ACTIVE="$(readlink "$DEPLOY_PATH/current" || true)"
+            if [ "releases/$OLD" = "$ACTIVE" ]; then
+              continue
+            fi
+            echo "Pruning old release: $OLD"
+            rm -rf -- "$OLD"
+          done
+
+          rm -f "$TARBALL"
+          REMOTE
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_deploy ~/.ssh/id_deploy.pub
