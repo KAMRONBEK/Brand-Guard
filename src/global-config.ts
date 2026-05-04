@@ -1,3 +1,4 @@
+import { DEFAULT_API_ORIGIN } from "@/constants/api-defaults";
 import packageJson from "../package.json";
 
 /**
@@ -38,10 +39,8 @@ export const GLOBAL_CONFIG: GlobalConfig = {
 	appVersion: packageJson.version,
 	defaultRoute: import.meta.env.VITE_APP_DEFAULT_ROUTE || "/workbench",
 	publicPath: import.meta.env.VITE_APP_PUBLIC_PATH || "/",
-	apiBaseUrl: import.meta.env.VITE_APP_API_BASE_URL || "/api",
-	commentApiBaseUrl:
-		import.meta.env.VITE_APP_COMMENT_API_BASE_URL ||
-		(import.meta.env.DEV ? "/comment-api" : "https://comment-api.fapi.uz"),
+	apiBaseUrl: import.meta.env.VITE_APP_API_BASE_URL || DEFAULT_API_ORIGIN,
+	commentApiBaseUrl: import.meta.env.VITE_APP_COMMENT_API_BASE_URL || DEFAULT_API_ORIGIN,
 	routerMode: import.meta.env.VITE_APP_ROUTER_MODE || "frontend",
 	docsUrl: import.meta.env.VITE_APP_DOCS_URL || "",
 	repositoryUrl: import.meta.env.VITE_APP_REPOSITORY_URL || "",

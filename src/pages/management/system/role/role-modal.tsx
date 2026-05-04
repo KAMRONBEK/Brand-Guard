@@ -2,7 +2,7 @@ import { Tree } from "antd";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { PERMISSION_LIST } from "@/_mock/assets";
+import { PERMISSION_LIST } from "@/fixtures/assets";
 import { Button } from "@/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/ui/form";

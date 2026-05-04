@@ -1,6 +1,6 @@
+import { faker } from "@faker-js/faker";
 import useUserStore from "@/store/userStore";
 import { BasicStatus, PermissionType } from "@/types/enum";
-import { faker } from "@faker-js/faker";
 
 /**
  * Organization data mock

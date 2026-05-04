@@ -35,10 +35,10 @@ export default defineConfig(({ mode }) => {
 			port: 3001,
 			proxy: {
 				"/api": {
-					target: "http://localhost:3000",
+					target: env.VITE_APP_API_PROXY_TARGET || "https://comment-api.fapi.uz",
 					changeOrigin: true,
 					rewrite: (path) => path.replace(/^\/api/, ""),
-					secure: false,
+					secure: true,
 				},
 				"/comment-api": {
 					target: env.VITE_APP_COMMENT_API_PROXY_TARGET || "https://comment-api.fapi.uz",

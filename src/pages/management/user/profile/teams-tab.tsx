@@ -1,4 +1,4 @@
-import { fakeAvatars } from "@/_mock/utils";
+import { fakeAvatars } from "@/fixtures/utils";
 import { Icon } from "@/components/icon";
 import { Avatar, AvatarImage } from "@/ui/avatar";
 import { Badge } from "@/ui/badge";
