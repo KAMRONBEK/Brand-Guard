@@ -1,4 +1,4 @@
-import { DB_MENU } from "@/_mock/assets_backup";
+import { DB_MENU } from "@/fixtures/assets_backup";
 import { Icon } from "@/components/icon";
 import type { NavItemDataProps, NavProps } from "@/components/nav";
 import type { MenuTree } from "@/types/entity";

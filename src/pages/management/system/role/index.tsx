@@ -1,4 +1,4 @@
-// import { ROLE_LIST } from "@/_mock/assets";
+// import { ROLE_LIST } from "@/fixtures/assets";
 import { Icon } from "@/components/icon";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";

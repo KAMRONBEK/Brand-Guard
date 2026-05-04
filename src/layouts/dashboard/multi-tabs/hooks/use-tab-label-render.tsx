@@ -1,4 +1,4 @@
-import { USER_LIST } from "@/_mock/assets";
+import { USER_LIST } from "@/fixtures/assets";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { KeepAliveTab } from "../types";

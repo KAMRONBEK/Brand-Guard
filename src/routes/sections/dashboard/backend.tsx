@@ -1,4 +1,4 @@
-import { DB_MENU } from "@/_mock/assets_backup";
+import { DB_MENU } from "@/fixtures/assets_backup";
 import type { MenuMetaInfo, MenuTree } from "@/types/entity";
 import { PermissionType } from "@/types/enum";
 import { convertFlatToTree } from "@/utils/tree";

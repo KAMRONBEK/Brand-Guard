@@ -8,7 +8,7 @@ import { ResultStatus } from "#/enum";
 
 const axiosInstance = axios.create({
 	baseURL: GLOBAL_CONFIG.apiBaseUrl,
-	timeout: 50000,
+	timeout: 600_000,
 	headers: { "Content-Type": "application/json;charset=utf-8" },
 });
 

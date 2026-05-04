@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { DB_USER } from "@/_mock/assets_backup";
+import { DB_USER } from "@/fixtures/assets_backup";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { useAuthCheck } from "@/components/auth/use-auth";
 import { CodeBlock } from "@/components/code/code-bock";

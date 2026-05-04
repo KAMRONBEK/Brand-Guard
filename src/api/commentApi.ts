@@ -6,7 +6,7 @@ import useUserStore from "@/store/userStore";
 
 const axiosInstance = axios.create({
 	baseURL: GLOBAL_CONFIG.commentApiBaseUrl,
-	timeout: 300_000,
+	timeout: 600_000,
 	headers: { "Content-Type": "application/json;charset=utf-8" },
 });
 

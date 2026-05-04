@@ -1,4 +1,4 @@
-// import { USER_LIST } from "@/_mock/assets";
+// import { USER_LIST } from "@/fixtures/assets";
 import { Icon } from "@/components/icon";
 import { usePathname, useRouter } from "@/routes/hooks";
 import { Badge } from "@/ui/badge";
