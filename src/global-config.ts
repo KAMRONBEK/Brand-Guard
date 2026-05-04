@@ -25,6 +25,8 @@ export type GlobalConfig = {
 	repositoryUrl: string;
 	/** Community URL e.g. Discord (empty hides header button) */
 	communityUrl: string;
+	/** Use fixture-based sign-in instead of calling the auth API (no backend required) */
+	mockAuth: boolean;
 };
 
 /**
@@ -45,4 +47,7 @@ export const GLOBAL_CONFIG: GlobalConfig = {
 	docsUrl: import.meta.env.VITE_APP_DOCS_URL || "",
 	repositoryUrl: import.meta.env.VITE_APP_REPOSITORY_URL || "",
 	communityUrl: import.meta.env.VITE_APP_COMMUNITY_URL || "",
+	mockAuth:
+		import.meta.env.VITE_APP_MOCK_AUTH === "true" ||
+		(import.meta.env.DEV && import.meta.env.VITE_APP_MOCK_AUTH !== "false"),
 };
