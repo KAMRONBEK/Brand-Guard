@@ -10,11 +10,59 @@ export const frontendNavData: NavProps["data"] = [
 				title: "sys.nav.workbench",
 				path: "/workbench",
 				icon: <Icon icon="local:ic-workbench" size="24" />,
+				children: [
+					{
+						title: "sys.workbench.tabs.search",
+						path: "/workbench/search",
+					},
+					{
+						title: "sys.workbench.tabs.caption",
+						path: "/workbench/caption",
+					},
+					{
+						title: "sys.workbench.tabs.post",
+						path: "/workbench/post",
+					},
+					{
+						title: "sys.workbench.tabs.campaign",
+						path: "/workbench/campaign",
+					},
+					{
+						title: "sys.workbench.tabs.facebookAccount",
+						path: "/workbench/fbAccount",
+					},
+					{
+						title: "sys.workbench.tabs.facebookFetch",
+						path: "/workbench/fbFetch",
+					},
+					{
+						title: "sys.workbench.tabs.facebookPost",
+						path: "/workbench/fbPost",
+					},
+				],
 			},
 			{
 				title: "sys.nav.analysis",
 				path: "/analysis",
 				icon: <Icon icon="local:ic-analysis" size="24" />,
+				children: [
+					{
+						title: "sys.analysis.tabs.fetch",
+						path: "/analysis/fetch",
+					},
+					{
+						title: "sys.analysis.tabs.list",
+						path: "/analysis/list",
+					},
+					{
+						title: "sys.analysis.tabs.stats",
+						path: "/analysis/stats",
+					},
+					{
+						title: "sys.analysis.tabs.account",
+						path: "/analysis/account",
+					},
+				],
 			},
 		],
 	},

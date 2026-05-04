@@ -4,8 +4,10 @@ import { Component } from "./utils";
 
 export function getFrontendDashboardRoutes(): RouteObject[] {
 	const frontendDashboardRoutes: RouteObject[] = [
-		{ path: "workbench", element: Component("/pages/dashboard/workbench") },
-		{ path: "analysis", element: Component("/pages/dashboard/analysis") },
+		{ path: "workbench", element: <Navigate to="/workbench/search" replace /> },
+		{ path: "workbench/:endpoint", element: Component("/pages/dashboard/workbench") },
+		{ path: "analysis", element: <Navigate to="/analysis/fetch" replace /> },
+		{ path: "analysis/:endpoint", element: Component("/pages/dashboard/analysis") },
 		{
 			path: "components",
 			children: [

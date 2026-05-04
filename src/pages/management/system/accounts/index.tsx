@@ -3,6 +3,7 @@ import { Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
 import { commentAccountsService } from "@/api/services/comment";
+import { ApiJsonPreview, ApiLongRunningNotice } from "@/components/comment-api/api-result";
 import { Icon } from "@/components/icon";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader } from "@/ui/card";
@@ -36,6 +37,7 @@ export default function CommentAccountsPage() {
 	const listQuery = useQuery({
 		queryKey: ["comment-api", "accounts"],
 		queryFn: () => commentAccountsService.list(),
+		staleTime: 1000 * 60,
 	});
 
 	const rows = extractRows(listQuery.data);
@@ -155,6 +157,13 @@ export default function CommentAccountsPage() {
 						Refresh
 					</Button>
 				</CardContent>
+				<CardContent className="pt-0">
+					<ApiLongRunningNotice
+						active={addMutation.isPending || reloginMutation.isPending}
+						title="Refreshing Instagram session"
+						description="Login and re-login open browser automation and can take a few minutes."
+					/>
+				</CardContent>
 			</Card>
 
 			<Card>
@@ -172,9 +181,9 @@ export default function CommentAccountsPage() {
 						columns={columns}
 						dataSource={rows}
 					/>
-					<pre className="mt-4 text-xs bg-muted rounded-md p-3 max-h-48 overflow-auto border">
-						{JSON.stringify(listQuery.data ?? {}, null, 2)}
-					</pre>
+					<div className="mt-4">
+						<ApiJsonPreview value={listQuery.data ?? {}} maxHeight="max-h-48" />
+					</div>
 				</CardContent>
 			</Card>
 		</div>
