@@ -3,6 +3,7 @@ import { Table } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useMemo, useState } from "react";
 import { commentMonitorsService } from "@/api/services/comment";
+import { ApiJsonPreview } from "@/components/comment-api/api-result";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader } from "@/ui/card";
 import { Input } from "@/ui/input";
@@ -45,6 +46,10 @@ function alertId(row: Record<string, unknown>): number | null {
 export default function CommentMonitorsPage() {
 	const queryClient = useQueryClient();
 	const [selectedId, setSelectedId] = useState<number | null>(null);
+	const [alertPage, setAlertPage] = useState(1);
+	const [alertLimit, setAlertLimit] = useState(50);
+	const [alertSentiment, setAlertSentiment] = useState("");
+	const [unreadOnly, setUnreadOnly] = useState(false);
 
 	const [target, setTarget] = useState("");
 	const [type, setType] = useState("keyword");
@@ -55,14 +60,29 @@ export default function CommentMonitorsPage() {
 	const listQuery = useQuery({
 		queryKey: ["comment-api", "monitors"],
 		queryFn: () => commentMonitorsService.list(),
+		staleTime: 1000 * 60,
 	});
 
 	const monitorRows = useMemo(() => extractRows(listQuery.data), [listQuery.data]);
 
-	const alertsQuery = useQuery({
-		queryKey: ["comment-api", "monitors", selectedId, "alerts"],
-		queryFn: () => commentMonitorsService.listAlerts(selectedId as number),
+	const detailQuery = useQuery({
+		queryKey: ["comment-api", "monitors", selectedId, "detail"],
+		queryFn: () => commentMonitorsService.getById(selectedId as number),
 		enabled: selectedId != null,
+		staleTime: 1000 * 60,
+	});
+
+	const alertsQuery = useQuery({
+		queryKey: ["comment-api", "monitors", selectedId, "alerts", alertPage, alertLimit, alertSentiment, unreadOnly],
+		queryFn: () =>
+			commentMonitorsService.listAlerts(selectedId as number, {
+				page: alertPage,
+				limit: alertLimit,
+				...(alertSentiment ? { sentiment: alertSentiment as "positive" | "negative" | "neutral" } : {}),
+				...(unreadOnly ? { unread: true } : {}),
+			}),
+		enabled: selectedId != null,
+		staleTime: 1000 * 60,
 	});
 
 	const alertRows = useMemo(() => extractAlertRows(alertsQuery.data), [alertsQuery.data]);
@@ -86,6 +106,7 @@ export default function CommentMonitorsPage() {
 		onSuccess: (_, id) => {
 			setSelectedId((cur) => (cur === id ? null : cur));
 			void queryClient.invalidateQueries({ queryKey: ["comment-api", "monitors"] });
+			void queryClient.invalidateQueries({ queryKey: ["comment-api", "monitors", id, "detail"] });
 			void queryClient.invalidateQueries({ queryKey: ["comment-api", "monitors", id, "alerts"] });
 		},
 	});
@@ -116,7 +137,7 @@ export default function CommentMonitorsPage() {
 				return (
 					<div className="flex flex-wrap gap-2">
 						<Button size="sm" variant={selectedId === id ? "default" : "outline"} onClick={() => setSelectedId(id)}>
-							Alerts
+							Details & alerts
 						</Button>
 						<Button size="sm" variant="outline" onClick={() => pauseMutation.mutate({ id, status: "paused" })}>
 							Pause
@@ -235,14 +256,73 @@ export default function CommentMonitorsPage() {
 			<Card>
 				<CardHeader>
 					<div className="font-semibold">
+						Monitor detail {selectedId != null ? `(GET /api/monitors/${selectedId})` : "(select a monitor)"}
+					</div>
+				</CardHeader>
+				<CardContent>
+					{selectedId == null ? (
+						<p className="text-sm text-muted-foreground">Choose “Details & alerts” on a monitor row.</p>
+					) : (
+						<ApiJsonPreview
+							value={detailQuery.data ?? (detailQuery.isError ? detailQuery.error : undefined)}
+							maxHeight="max-h-48"
+						/>
+					)}
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<div className="font-semibold">
 						Alerts {selectedId != null ? `(GET /api/monitors/${selectedId}/alerts)` : "(select a monitor)"}
 					</div>
 				</CardHeader>
 				<CardContent>
 					{selectedId == null ? (
-						<p className="text-sm text-muted-foreground">Choose “Alerts” on a monitor row.</p>
+						<p className="text-sm text-muted-foreground">Choose “Details & alerts” on a monitor row.</p>
 					) : (
 						<>
+							<div className="mb-3 grid gap-3 sm:grid-cols-4">
+								<div className="space-y-2">
+									<Label htmlFor="ap">page</Label>
+									<Input
+										id="ap"
+										type="number"
+										min={1}
+										value={alertPage}
+										onChange={(e) => setAlertPage(Number(e.target.value) || 1)}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="al">limit</Label>
+									<Input
+										id="al"
+										type="number"
+										min={1}
+										value={alertLimit}
+										onChange={(e) => setAlertLimit(Number(e.target.value) || 50)}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="as">sentiment</Label>
+									<Input
+										id="as"
+										value={alertSentiment}
+										onChange={(e) => setAlertSentiment(e.target.value)}
+										placeholder="positive | negative | neutral"
+									/>
+								</div>
+								<div className="flex items-center gap-2 pt-7">
+									<input
+										id="ao"
+										type="checkbox"
+										className="size-4"
+										checked={unreadOnly}
+										onChange={(e) => setUnreadOnly(e.target.checked)}
+									/>
+									<Label htmlFor="ao">unread only</Label>
+								</div>
+							</div>
 							<Table
 								rowKey={(_, i) => String(i)}
 								size="small"
@@ -251,9 +331,9 @@ export default function CommentMonitorsPage() {
 								columns={alertColumns}
 								dataSource={alertRows}
 							/>
-							<pre className="mt-4 text-xs bg-muted rounded-md p-3 max-h-48 overflow-auto border">
-								{JSON.stringify(alertsQuery.data ?? {}, null, 2)}
-							</pre>
+							<div className="mt-4">
+								<ApiJsonPreview value={alertsQuery.data ?? {}} maxHeight="max-h-48" />
+							</div>
 						</>
 					)}
 				</CardContent>

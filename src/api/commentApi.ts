@@ -21,9 +21,13 @@ axiosInstance.interceptors.request.use((config) => {
 axiosInstance.interceptors.response.use(
 	(res: AxiosResponse) => res,
 	(error) => {
+		const responseData = error?.response?.data;
 		const msg =
-			(error?.response?.data && typeof error.response.data === "object" && "message" in error.response.data
-				? String((error.response.data as { message?: string }).message)
+			(responseData && typeof responseData === "object" && "message" in responseData
+				? String((responseData as { message?: string }).message)
+				: null) ||
+			(responseData && typeof responseData === "object" && "error" in responseData
+				? String((responseData as { error?: string }).error)
 				: null) ||
 			error?.message ||
 			t("sys.api.errorMessage");

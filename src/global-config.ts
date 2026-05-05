@@ -25,6 +25,18 @@ export type GlobalConfig = {
 	repositoryUrl: string;
 	/** Community URL e.g. Discord (empty hides header button) */
 	communityUrl: string;
+	/** Use fixture-based sign-in instead of calling the auth API (no backend required) */
+	mockAuth: boolean;
+};
+
+const normalizeAbsoluteCommentApiOrigin = (baseUrl: string): string => {
+	const trimmedBaseUrl = baseUrl.replace(/\/+$/, "");
+
+	if (!/^https?:\/\//i.test(trimmedBaseUrl)) {
+		return trimmedBaseUrl;
+	}
+
+	return trimmedBaseUrl.replace(/\/api$/i, "");
 };
 
 /**
@@ -40,9 +52,12 @@ export const GLOBAL_CONFIG: GlobalConfig = {
 	defaultRoute: import.meta.env.VITE_APP_DEFAULT_ROUTE || "/workbench",
 	publicPath: import.meta.env.VITE_APP_PUBLIC_PATH || "/",
 	apiBaseUrl: import.meta.env.VITE_APP_API_BASE_URL || DEFAULT_API_ORIGIN,
-	commentApiBaseUrl: import.meta.env.VITE_APP_COMMENT_API_BASE_URL || DEFAULT_API_ORIGIN,
+	commentApiBaseUrl: normalizeAbsoluteCommentApiOrigin(
+		import.meta.env.VITE_APP_COMMENT_API_BASE_URL || DEFAULT_API_ORIGIN,
+	),
 	routerMode: import.meta.env.VITE_APP_ROUTER_MODE || "frontend",
 	docsUrl: import.meta.env.VITE_APP_DOCS_URL || "",
 	repositoryUrl: import.meta.env.VITE_APP_REPOSITORY_URL || "",
 	communityUrl: import.meta.env.VITE_APP_COMMUNITY_URL || "",
+	mockAuth: import.meta.env.VITE_APP_MOCK_AUTH === "true",
 };

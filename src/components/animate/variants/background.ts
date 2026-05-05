@@ -1,9 +1,12 @@
 import type { BackgroundType } from "../types";
 
+const LINEAR_EASE: [number, number, number, number] = [0, 0, 1, 1];
+const EASE_OUT: [number, number, number, number] = [0, 0, 0.2, 1];
+
 export const varBgColor = (props?: BackgroundType) => {
 	const colors = props?.colors || ["#19dcea", "#b22cff"];
 	const duration = props?.duration || 5;
-	const ease = props?.ease || "linear";
+	const ease = props?.ease || LINEAR_EASE;
 
 	return {
 		animate: {
@@ -17,7 +20,7 @@ export const varBgColor = (props?: BackgroundType) => {
 
 export const varBgKenburns = (props?: BackgroundType) => {
 	const duration = props?.duration || 5;
-	const ease = props?.ease || "easeOut";
+	const ease = props?.ease || EASE_OUT;
 
 	return {
 		top: {
@@ -62,7 +65,7 @@ export const varBgKenburns = (props?: BackgroundType) => {
 export const varBgPan = (props?: BackgroundType) => {
 	const colors = props?.colors || ["#ee7752", "#e73c7e", "#23a6d5", "#23d5ab"];
 	const duration = props?.duration || 5;
-	const ease = props?.ease || "linear";
+	const ease = props?.ease || LINEAR_EASE;
 
 	const gradient = (deg: number) => `linear-gradient(${deg}deg, ${colors})`;
 
