@@ -47,7 +47,5 @@ export const GLOBAL_CONFIG: GlobalConfig = {
 	docsUrl: import.meta.env.VITE_APP_DOCS_URL || "",
 	repositoryUrl: import.meta.env.VITE_APP_REPOSITORY_URL || "",
 	communityUrl: import.meta.env.VITE_APP_COMMUNITY_URL || "",
-	mockAuth:
-		import.meta.env.VITE_APP_MOCK_AUTH === "true" ||
-		(import.meta.env.DEV && import.meta.env.VITE_APP_MOCK_AUTH !== "false"),
+	mockAuth: import.meta.env.VITE_APP_MOCK_AUTH === "true",
 };
