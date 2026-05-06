@@ -2,7 +2,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function unwrapPayload(chunk: unknown): unknown {
+export function unwrapPayload(chunk: unknown): unknown {
 	if (!isRecord(chunk)) return chunk;
 	if (chunk.data !== undefined) return chunk.data;
 	if (chunk.payload !== undefined) return chunk.payload;
@@ -60,7 +60,7 @@ function postKey(post: Record<string, unknown>): string {
 	return JSON.stringify(post);
 }
 
-function mergePostArrays(
+export function mergePostArrays(
 	previous: Record<string, unknown>[],
 	incoming: Record<string, unknown>[],
 ): Record<string, unknown>[] {

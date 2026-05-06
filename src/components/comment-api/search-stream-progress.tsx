@@ -40,10 +40,19 @@ export function SearchStreamProgress({
 	active,
 	steps,
 	storageKey,
+	title,
+	subtitle,
+	waitingText,
+	runningLabel,
 }: {
 	active: boolean;
 	steps: ReadonlyArray<SearchStreamStepRow>;
 	storageKey?: string;
+	/** Defaults to Instagram search progress copy when omitted */
+	title?: string;
+	subtitle?: string;
+	waitingText?: string;
+	runningLabel?: string;
 }) {
 	const { t } = useTranslation();
 	const location = useLocation();
@@ -100,16 +109,16 @@ export function SearchStreamProgress({
 			<CardHeader className="pb-2">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0">
-						<CardTitle className="text-base">{t("sys.workbench.search.streamProgressTitle")}</CardTitle>
+						<CardTitle className="text-base">{title ?? t("sys.workbench.search.streamProgressTitle")}</CardTitle>
 						<Text variant="caption" className="text-muted-foreground">
-							{t("sys.workbench.search.streamProgressSubtitle")}
+							{subtitle ?? t("sys.workbench.search.streamProgressSubtitle")}
 						</Text>
 					</div>
 					<div className="flex items-center gap-2">
 						{active && (
 							<span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
 								<span className="size-2 rounded-full bg-primary/80 animate-pulse" />
-								{t("sys.workbench.search.running")}
+								{runningLabel ?? t("sys.workbench.search.running")}
 							</span>
 						)}
 						<Badge variant="info" className="shrink-0 font-mono">
@@ -125,7 +134,7 @@ export function SearchStreamProgress({
 				>
 					{steps.length === 0 ? (
 						<Text variant="caption" className="block px-2 py-4 text-muted-foreground">
-							{t("sys.workbench.search.streamProgressWaiting")}
+							{waitingText ?? t("sys.workbench.search.streamProgressWaiting")}
 						</Text>
 					) : (
 						steps.map((row, index) => {

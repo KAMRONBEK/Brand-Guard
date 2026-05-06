@@ -103,6 +103,11 @@ export interface AutoReplyRequest {
 	period_seconds?: number;
 }
 
+/** Match comment-api Swagger enum on `tone` fields (generation / campaign) when documented. */
+export const COMMENT_GENERATION_TONES = ["positive", "neutral", "negative"] as const;
+
+export type CommentGenerationTone = (typeof COMMENT_GENERATION_TONES)[number];
+
 export interface CampaignRequest {
 	comments?: string[];
 	generate_count?: number;
@@ -112,7 +117,7 @@ export interface CampaignRequest {
 	period_hours?: number;
 	period_seconds?: number;
 	search_type?: string;
-	tone?: string;
+	tone?: CommentGenerationTone;
 }
 
 export interface AccountAnalyzeRequest {
@@ -127,7 +132,7 @@ export interface FacebookFetchRequest {
 }
 
 export interface FacebookAutoGenerate {
-	tone?: string;
+	tone?: CommentGenerationTone;
 	count?: number;
 }
 
