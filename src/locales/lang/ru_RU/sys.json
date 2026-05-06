@@ -207,7 +207,10 @@
 				"periodHoursLabel": "Период (часы)",
 				"analyzeLabel": "Включить анализ тональности",
 				"run": "Найти упоминания",
-				"running": "Сканируем Instagram…"
+				"running": "Сканируем Instagram…",
+				"streamProgressTitle": "Ход выполнения",
+				"streamProgressSubtitle": "Каждая строка — обновление от сервиса поиска.",
+				"streamProgressWaiting": "Ожидаем первое обновление…"
 			},
 			"post": {
 				"cardTitle": "Опубликовать подготовленные ответы",
@@ -357,7 +360,13 @@
 				"positiveVsNegative": "Позитивные vs негативные",
 				"topCategory": "Главная категория",
 				"mostCommonPostType": "Самый частый тип поста"
-			}
+			},
+			"post": {
+				"shortcode": "Короткий код",
+				"likes": "Лайки",
+				"commentsOnPost": "Комментарии к посту"
+			},
+			"totalInResponse": "Постов в ответе"
 		},
 		"i18nPage": {
 			"cardTitle": "Языки",

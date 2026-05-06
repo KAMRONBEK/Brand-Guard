@@ -207,7 +207,10 @@
 				"periodHoursLabel": "Time range (hours)",
 				"analyzeLabel": "Include sentiment analysis",
 				"run": "Find mentions",
-				"running": "Scanning Instagram…"
+				"running": "Scanning Instagram…",
+				"streamProgressTitle": "Live progress",
+				"streamProgressSubtitle": "Each line is an update from the search service.",
+				"streamProgressWaiting": "Waiting for the first update…"
 			},
 			"post": {
 				"cardTitle": "Publish prepared responses",
@@ -357,7 +360,13 @@
 				"positiveVsNegative": "Positive vs negative",
 				"topCategory": "Top category",
 				"mostCommonPostType": "Most common post type"
-			}
+			},
+			"post": {
+				"shortcode": "Shortcode",
+				"likes": "Likes",
+				"commentsOnPost": "Comments on post"
+			},
+			"totalInResponse": "Posts in this response"
 		},
 		"i18nPage": {
 			"cardTitle": "Multi-language",

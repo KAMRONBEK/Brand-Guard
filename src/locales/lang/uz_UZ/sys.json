@@ -207,7 +207,10 @@
 				"periodHoursLabel": "Vaqt oraligʻi (soat)",
 				"analyzeLabel": "Ton tahlilini qoʻshish",
 				"run": "Eslatmalarni topish",
-				"running": "Instagram skanerlanmoqda…"
+				"running": "Instagram skanerlanmoqda…",
+				"streamProgressTitle": "Jarayon",
+				"streamProgressSubtitle": "Har bir qator qidiruv xizmatidan kelgan yangilanish.",
+				"streamProgressWaiting": "Birinchi yangilanish kutilmoqda…"
 			},
 			"post": {
 				"cardTitle": "Tayyor javoblarni joylash",
@@ -357,7 +360,13 @@
 				"positiveVsNegative": "Ijobiy va salbiy",
 				"topCategory": "Asosiy kategoriya",
 				"mostCommonPostType": "Eng koʻp uchraydigan post turi"
-			}
+			},
+			"post": {
+				"shortcode": "Qisqa kod",
+				"likes": "Layklar",
+				"commentsOnPost": "Postdagi izohlar"
+			},
+			"totalInResponse": "Javobdagi postlar"
 		},
 		"i18nPage": {
 			"cardTitle": "Tillar",

@@ -322,6 +322,49 @@ function extractPosts(value: unknown): AnalyzedPost[] {
 	return Array.isArray(posts) ? (posts as AnalyzedPost[]) : [];
 }
 
+function formatPostMetric(value: string | number | undefined): string {
+	if (value === undefined) return "—";
+	if (typeof value === "string" && value.trim() === "") return "—";
+	return String(value);
+}
+
+function PostMetaStrip({ post }: { post: AnalyzedPost }) {
+	const { t } = useTranslation();
+	const hasShortcode = typeof post.shortcode === "string" && post.shortcode.length > 0;
+	const showLikes = post.like_count !== undefined;
+	const showComments = post.comment_count !== undefined;
+	if (!hasShortcode && !showLikes && !showComments) return null;
+
+	return (
+		<div className="flex flex-wrap gap-2">
+			{hasShortcode && (
+				<div className="min-w-[140px] flex-1 rounded-xl border bg-muted/40 px-3 py-2">
+					<div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+						{t("sys.commentApi.post.shortcode")}
+					</div>
+					<div className="mt-0.5 font-mono text-sm break-all">{post.shortcode}</div>
+				</div>
+			)}
+			{showLikes && (
+				<div className="min-w-[100px] flex-1 rounded-xl border bg-muted/40 px-3 py-2">
+					<div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+						{t("sys.commentApi.post.likes")}
+					</div>
+					<div className="mt-0.5 text-sm font-medium">{formatPostMetric(post.like_count)}</div>
+				</div>
+			)}
+			{showComments && (
+				<div className="min-w-[100px] flex-1 rounded-xl border bg-muted/40 px-3 py-2">
+					<div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+						{t("sys.commentApi.post.commentsOnPost")}
+					</div>
+					<div className="mt-0.5 text-sm font-medium">{formatPostMetric(post.comment_count)}</div>
+				</div>
+			)}
+		</div>
+	);
+}
+
 export function ApiResultView({ value, empty }: { value: unknown; empty?: string }) {
 	const { t } = useTranslation();
 	if (value === undefined) {
@@ -339,9 +382,20 @@ export function ApiResultView({ value, empty }: { value: unknown; empty?: string
 	const comments = root?.comments;
 	const overallCards = extractOverallCards(value, t);
 	const rootUsername = typeof root?.username === "string" ? root.username : undefined;
+	const streamTotal = typeof root?.total === "number" ? root.total : undefined;
 
 	return (
 		<div className="flex flex-col gap-4">
+			{overallCards.length === 0 && streamTotal !== undefined && (
+				<Card className="border-primary/15 bg-primary/5">
+					<CardContent className="p-4">
+						<div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+							{t("sys.commentApi.totalInResponse")}
+						</div>
+						<div className="mt-1 text-2xl font-semibold">{streamTotal}</div>
+					</CardContent>
+				</Card>
+			)}
 			{overallCards.length > 0 && (
 				<Card className="bg-gradient-to-br from-primary/10 via-background to-background">
 					<CardHeader className="pb-2">
@@ -390,6 +444,7 @@ export function ApiResultView({ value, empty }: { value: unknown; empty?: string
 								)}
 							</CardHeader>
 							<CardContent className="flex flex-col gap-3">
+								<PostMetaStrip post={post} />
 								{post.caption && <p className="text-sm whitespace-pre-wrap">{post.caption}</p>}
 								{post.caption_analysis && (
 									<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

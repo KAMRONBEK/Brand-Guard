@@ -33,6 +33,7 @@ export interface CaptionAnalysis {
 
 export interface AnalyzedPost {
 	url?: string;
+	shortcode?: string;
 	username?: string;
 	author?: string;
 	caption?: string;
@@ -57,6 +58,7 @@ export interface AccountAnalyzeResponse {
 export interface SearchResponse {
 	keyword?: string;
 	keywords?: string[];
+	total?: number;
 	overall?: {
 		total_posts?: number;
 		total_comments?: number;

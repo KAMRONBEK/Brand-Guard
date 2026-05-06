@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/api/services/comment";
 import { ApiJsonPreview, ApiLongRunningNotice, ApiResultView } from "@/components/comment-api/api-result";
 import { WorkflowShell } from "@/components/comment-api/executive-ui";
+import { SearchStreamProgress, type SearchStreamStepRow } from "@/components/comment-api/search-stream-progress";
 import Icon from "@/components/icon/icon";
 import type {
 	AutoReplyRequest,
@@ -31,6 +32,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent } from "@/ui/tabs";
 import { Textarea } from "@/ui/textarea";
 import { Text, Title } from "@/ui/typography";
+import {
+	getSearchStreamProgressStep,
+	hasSearchResultPayload,
+	mergeSearchStreamChunk,
+} from "@/utils/mergeSearchStreamChunk";
 
 const CACHE_TIME = 1000 * 60 * 30;
 
@@ -177,14 +183,69 @@ export default function Workbench() {
 	const [searchPeriodHours, setSearchPeriodHours] = useState(24);
 	const [searchType, setSearchType] = useState("all");
 	const [searchAnalyze, setSearchAnalyze] = useState(true);
-	const [searchRequest, setSearchRequest] = useState<SearchRequest | null>(null);
-	const searchQuery = useQuery({
-		queryKey: ["comment-api", "search", searchRequest],
-		queryFn: () => commentSearchService.search(searchRequest as SearchRequest),
-		enabled: searchRequest != null,
-		staleTime: CACHE_TIME,
-		gcTime: CACHE_TIME,
-	});
+	const searchAbortRef = useRef<AbortController | null>(null);
+	const searchStreamStepIdRef = useRef(0);
+	const [searchStreamSteps, setSearchStreamSteps] = useState<SearchStreamStepRow[]>([]);
+	const [searchData, setSearchData] = useState<unknown>();
+	const [searchStreaming, setSearchStreaming] = useState(false);
+	const [searchError, setSearchError] = useState<Error | null>(null);
+
+	useEffect(() => {
+		return () => searchAbortRef.current?.abort();
+	}, []);
+
+	const runSearch = () => {
+		const body: SearchRequest = {
+			keyword: searchKeyword.trim(),
+			max_posts: searchMaxPosts,
+			period_hours: searchPeriodHours,
+			search_type: searchType,
+			analyze: searchAnalyze,
+		};
+		searchAbortRef.current?.abort();
+		const ac = new AbortController();
+		searchAbortRef.current = ac;
+		setSearchError(null);
+		setSearchData(undefined);
+		searchStreamStepIdRef.current = 0;
+		setSearchStreamSteps([]);
+		setSearchStreaming(true);
+		let hasResultChunk = false;
+		void commentSearchService
+			.searchStream(body, {
+				signal: ac.signal,
+				onEvent: (chunk) => {
+					const progressStep = getSearchStreamProgressStep(chunk);
+					if (progressStep !== null) {
+						const id = ++searchStreamStepIdRef.current;
+						setSearchStreamSteps((prev) => [...prev, { id, ...progressStep }]);
+						return;
+					}
+					if (hasSearchResultPayload(chunk)) {
+						hasResultChunk = true;
+					}
+					setSearchData((prev: unknown) => mergeSearchStreamChunk(prev, chunk));
+				},
+			})
+			.then(async () => {
+				if (hasResultChunk || ac.signal.aborted || searchAbortRef.current !== ac) {
+					return;
+				}
+				const fallbackResult = await commentSearchService.search(body);
+				if (searchAbortRef.current === ac) {
+					setSearchData(fallbackResult);
+				}
+			})
+			.catch((error: unknown) => {
+				setSearchError(error instanceof Error ? error : new Error(String(error)));
+			})
+			.finally(() => {
+				if (searchAbortRef.current === ac) {
+					setSearchStreaming(false);
+					setSearchStreamSteps([]);
+				}
+			});
+	};
 
 	const [postUrl, setPostUrl] = useState("");
 	const [commentsText, setCommentsText] = useState("");
@@ -390,22 +451,13 @@ export default function Workbench() {
 								<Label htmlFor="an">{t("sys.workbench.search.analyzeLabel")}</Label>
 							</div>
 						</div>
-						<Button
-							disabled={!searchKeyword.trim() || searchQuery.isFetching}
-							onClick={() =>
-								setSearchRequest({
-									keyword: searchKeyword.trim(),
-									max_posts: searchMaxPosts,
-									period_hours: searchPeriodHours,
-									search_type: searchType,
-									analyze: searchAnalyze,
-								})
-							}
-						>
-							{searchQuery.isFetching ? t("sys.workbench.search.running") : t("sys.workbench.search.run")}
+						<Button disabled={!searchKeyword.trim() || searchStreaming} onClick={runSearch}>
+							{searchStreaming ? t("sys.workbench.search.running") : t("sys.workbench.search.run")}
 						</Button>
-						<ApiLongRunningNotice active={searchQuery.isFetching} storageKey="workbench-search" />
-						<ApiResultView value={searchQuery.data ?? (searchQuery.isError ? searchQuery.error : undefined)} />
+						<SearchStreamProgress active={searchStreaming} storageKey="workbench-search" steps={searchStreamSteps} />
+						<ApiResultView
+							value={searchData !== undefined ? searchData : searchError !== null ? searchError : undefined}
+						/>
 					</WorkflowShell>
 				</TabsContent>
 
