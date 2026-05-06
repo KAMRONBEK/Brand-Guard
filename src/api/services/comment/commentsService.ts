@@ -1,5 +1,5 @@
 import commentApi from "@/api/commentApi";
-import type { FetchRequest, PostCommentsRequest, SentimentFilter } from "@/types/comment-api";
+import type { AutoReplyRequest, FetchRequest, PostCommentsRequest, SentimentFilter } from "@/types/comment-api";
 
 const fetchComments = (body: FetchRequest) => commentApi.postJson<unknown>("/api/comments/fetch", body);
 
@@ -13,4 +13,6 @@ const exportComments = (params: { post_url: string; format?: "json" | "csv"; sen
 
 const postComments = (body: PostCommentsRequest) => commentApi.postJson<unknown>("/api/comments/post", body);
 
-export default { fetchComments, listComments, stats, exportComments, postComments };
+const autoReply = (body: AutoReplyRequest) => commentApi.postJson<unknown>("/api/posts/auto-reply", body);
+
+export default { fetchComments, listComments, stats, exportComments, postComments, autoReply };

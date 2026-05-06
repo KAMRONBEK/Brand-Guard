@@ -118,7 +118,7 @@ export default function AnalysisPage() {
 						>
 							{fetchQuery.isFetching ? t("sys.analysis.fetching") : t("sys.analysis.fetchAnalyze")}
 						</Button>
-						<ApiLongRunningNotice active={fetchQuery.isFetching} />
+						<ApiLongRunningNotice active={fetchQuery.isFetching} storageKey="analysis-fetch" />
 						<ApiResultView value={fetchQuery.data ?? (fetchQuery.isError ? fetchQuery.error : undefined)} />
 					</WorkflowShell>
 				</TabsContent>
@@ -189,7 +189,7 @@ export default function AnalysisPage() {
 							<Icon icon="mdi:refresh" size={16} />
 							{commentsQuery.isFetching ? t("sys.analysis.loadingList") : t("sys.analysis.refreshList")}
 						</Button>
-						<ApiLongRunningNotice active={commentsQuery.isFetching} />
+						<ApiLongRunningNotice active={commentsQuery.isFetching} storageKey="analysis-list" />
 						<ApiResultView value={commentsQuery.data ?? (commentsQuery.isError ? commentsQuery.error : undefined)} />
 					</WorkflowShell>
 				</TabsContent>
@@ -231,7 +231,10 @@ export default function AnalysisPage() {
 								{t("sys.analysis.exportCsv")}
 							</Button>
 						</div>
-						<ApiLongRunningNotice active={statsQuery.isFetching || exportMutation.isPending} />
+						<ApiLongRunningNotice
+							active={statsQuery.isFetching || exportMutation.isPending}
+							storageKey="analysis-stats"
+						/>
 						<ApiResultView value={statsQuery.data ?? (statsQuery.isError ? statsQuery.error : undefined)} />
 						{exportMutation.isError && <ApiJsonPreview value={exportMutation.error} />}
 					</WorkflowShell>
@@ -270,7 +273,7 @@ export default function AnalysisPage() {
 						>
 							{analyzeQuery.isFetching ? t("sys.analysis.analyzing") : t("sys.analysis.runAccountAnalyze")}
 						</Button>
-						<ApiLongRunningNotice active={analyzeQuery.isFetching} />
+						<ApiLongRunningNotice active={analyzeQuery.isFetching} storageKey="analysis-account" />
 						<ApiResultView value={analyzeQuery.data ?? (analyzeQuery.isError ? analyzeQuery.error : undefined)} />
 					</WorkflowShell>
 				</TabsContent>

@@ -177,8 +177,8 @@
 			"resumePolling": "Status tekshiruvini davom ettirish",
 			"tabs": {
 				"search": "Eslatmalarni topish",
-				"caption": "Sarlavha mavzulari",
 				"post": "Javoblarni joylash",
+				"autoReply": "Avtojavoblar",
 				"campaign": "Javob kampaniyasi",
 				"facebookAccount": "Facebook sharhi",
 				"facebookFetch": "Facebook posti",
@@ -188,6 +188,13 @@
 				"discovery": "Qidiruv",
 				"report": "Hisobot",
 				"action": "Amal"
+			},
+			"shared": {
+				"responseAccountsLabel": "Javob akkauntlari",
+				"commentCountLabel": "izoh",
+				"refreshAccounts": "Akkauntlarni yangilash",
+				"loadingAccounts": "Akkauntlar yuklanmoqda…",
+				"noAccounts": "Javob akkauntlari topilmadi. Ularni Management > System > Accounts bo‘limida qo‘shing."
 			},
 			"search": {
 				"cardTitle": "Instagram eslatmalarini topish",
@@ -202,15 +209,6 @@
 				"run": "Eslatmalarni topish",
 				"running": "Instagram skanerlanmoqda…"
 			},
-			"caption": {
-				"cardTitle": "Sarlavha mavzusi boʻyicha postlarni topish",
-				"hint": "Sarlavhada kerakli mavzu muhokama qilingan postlarni toping va auditoriya kayfiyatini koʻring.",
-				"keywordLabel": "Mavzu yoki ibora",
-				"maxPostsLabel": "Tekshiriladigan postlar",
-				"periodHoursLabel": "Vaqt oraligʻi (soat)",
-				"run": "Mavzu postlarini topish",
-				"running": "Mavzu postlari topilmoqda…"
-			},
 			"post": {
 				"cardTitle": "Tayyor javoblarni joylash",
 				"hint": "Tasdiqlangan izohlarni ulangan javob akkauntlari orqali Instagram postiga yuboring.",
@@ -221,6 +219,12 @@
 				"periodSecondsLabel": "Javoblar orasidagi kutish (soniya)",
 				"run": "Javoblarni joylash",
 				"posting": "Javoblar joylanmoqda…"
+			},
+			"autoReply": {
+				"cardTitle": "Salbiy izohlarga avtojavob berish",
+				"hint": "Postni tahlil qiling, juda jiddiy salbiy izohlarni oʻtkazib yuboring va yengilroq salbiy izohlarga tanlangan akkauntlar orqali javob bering.",
+				"run": "Avtojavobni boshlash",
+				"running": "Avtojavob bajarilmoqda…"
 			},
 			"campaign": {
 				"cardTitle": "Javob kampaniyasini ishga tushirish",
