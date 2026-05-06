@@ -14,30 +14,37 @@ export const frontendNavData: NavProps["data"] = [
 					{
 						title: "sys.workbench.tabs.search",
 						path: "/workbench/search",
-					},
-					{
-						title: "sys.workbench.tabs.caption",
-						path: "/workbench/caption",
+						icon: <Icon icon="solar:magnifer-bold-duotone" size={18} />,
 					},
 					{
 						title: "sys.workbench.tabs.post",
 						path: "/workbench/post",
+						icon: <Icon icon="solar:plain-bold-duotone" size={18} />,
+					},
+					{
+						title: "sys.workbench.tabs.autoReply",
+						path: "/workbench/autoReply",
+						icon: <Icon icon="mdi:message-reply-text-outline" size={18} />,
 					},
 					{
 						title: "sys.workbench.tabs.campaign",
 						path: "/workbench/campaign",
+						icon: <Icon icon="mdi:bullhorn-outline" size={18} />,
 					},
 					{
 						title: "sys.workbench.tabs.facebookAccount",
 						path: "/workbench/fbAccount",
+						icon: <Icon icon="mdi:facebook" size={18} />,
 					},
 					{
 						title: "sys.workbench.tabs.facebookFetch",
 						path: "/workbench/fbFetch",
+						icon: <Icon icon="solar:document-text-bold-duotone" size={18} />,
 					},
 					{
 						title: "sys.workbench.tabs.facebookPost",
 						path: "/workbench/fbPost",
+						icon: <Icon icon="mdi:send-outline" size={18} />,
 					},
 				],
 			},
@@ -49,18 +56,22 @@ export const frontendNavData: NavProps["data"] = [
 					{
 						title: "sys.analysis.tabs.fetch",
 						path: "/analysis/fetch",
+						icon: <Icon icon="mdi:file-search-outline" size={18} />,
 					},
 					{
 						title: "sys.analysis.tabs.list",
 						path: "/analysis/list",
+						icon: <Icon icon="mdi:comment-text-multiple-outline" size={18} />,
 					},
 					{
 						title: "sys.analysis.tabs.stats",
 						path: "/analysis/stats",
+						icon: <Icon icon="mdi:chart-donut" size={18} />,
 					},
 					{
 						title: "sys.analysis.tabs.account",
 						path: "/analysis/account",
+						icon: <Icon icon="mdi:account-search-outline" size={18} />,
 					},
 				],
 			},

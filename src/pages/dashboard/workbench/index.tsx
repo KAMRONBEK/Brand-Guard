@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
 import {
+	commentAccountsService,
 	commentCampaignService,
 	commentCommentsService,
 	commentFacebookService,
@@ -11,10 +12,11 @@ import {
 } from "@/api/services/comment";
 import { ApiJsonPreview, ApiLongRunningNotice, ApiResultView } from "@/components/comment-api/api-result";
 import { WorkflowShell } from "@/components/comment-api/executive-ui";
+import { SearchStreamProgress, type SearchStreamStepRow } from "@/components/comment-api/search-stream-progress";
 import Icon from "@/components/icon/icon";
 import type {
+	AutoReplyRequest,
 	CampaignRequest,
-	CaptionSearchRequest,
 	FacebookAccountAnalyzeRequest,
 	FacebookFetchRequest,
 	FacebookPostCommentRequest,
@@ -23,14 +25,25 @@ import type {
 } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
+import { Checkbox } from "@/ui/checkbox";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Tabs, TabsContent } from "@/ui/tabs";
 import { Textarea } from "@/ui/textarea";
 import { Text, Title } from "@/ui/typography";
+import {
+	getSearchStreamProgressStep,
+	hasSearchResultPayload,
+	mergeSearchStreamChunk,
+} from "@/utils/mergeSearchStreamChunk";
 
 const CACHE_TIME = 1000 * 60 * 30;
+
+interface AccountOption {
+	commentCount: number;
+	username: string;
+}
 
 function linesToArray(value: string): string[] {
 	return value
@@ -39,15 +52,124 @@ function linesToArray(value: string): string[] {
 		.filter(Boolean);
 }
 
+function extractAccountOptions(data: unknown): AccountOption[] {
+	const rows = Array.isArray(data)
+		? data
+		: data && typeof data === "object"
+			? (["accounts", "items", "data", "rows", "list"]
+					.map((key) => (data as Record<string, unknown>)[key])
+					.find(Array.isArray) as unknown[] | undefined)
+			: undefined;
+
+	return (rows ?? []).flatMap((row) => {
+		if (!row || typeof row !== "object") return [];
+		const account = row as Record<string, unknown>;
+		const value = account.username ?? account.user ?? account.name;
+		if (typeof value !== "string") return [];
+		return [
+			{
+				username: value,
+				commentCount: typeof account.comment_count === "number" ? account.comment_count : 0,
+			},
+		];
+	});
+}
+
+function toggleAccount(accounts: string[], account: string, checked: boolean): string[] {
+	if (checked) return accounts.includes(account) ? accounts : [...accounts, account];
+	return accounts.filter((item) => item !== account);
+}
+
+interface AccountMultiSelectProps {
+	accounts: AccountOption[];
+	commentCountLabel: string;
+	emptyText: string;
+	idPrefix: string;
+	isLoading: boolean;
+	label: string;
+	loadingText: string;
+	onChange: (accounts: string[]) => void;
+	onRefresh: () => void;
+	refreshLabel: string;
+	selectedAccounts: string[];
+	showCommentCounts?: boolean;
+}
+
+function AccountMultiSelect({
+	accounts,
+	commentCountLabel,
+	emptyText,
+	idPrefix,
+	isLoading,
+	label,
+	loadingText,
+	onChange,
+	onRefresh,
+	refreshLabel,
+	selectedAccounts,
+	showCommentCounts = false,
+}: AccountMultiSelectProps) {
+	return (
+		<div className="space-y-2">
+			<div className="flex items-center justify-between gap-2">
+				<Label>{label}</Label>
+				<Button type="button" size="sm" variant="ghost" disabled={isLoading} onClick={onRefresh}>
+					{refreshLabel}
+				</Button>
+			</div>
+			<div className="rounded-md border border-border bg-background p-3">
+				{isLoading && accounts.length === 0 ? (
+					<p className="text-sm text-muted-foreground">{loadingText}</p>
+				) : accounts.length === 0 ? (
+					<p className="text-sm text-muted-foreground">{emptyText}</p>
+				) : (
+					<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+						{accounts.map((account) => {
+							const id = `${idPrefix}-${account.username}`;
+							return (
+								<div key={account.username} className="flex items-center justify-between gap-3 rounded-md border p-2">
+									<div className="flex items-center gap-2">
+										<Checkbox
+											id={id}
+											checked={selectedAccounts.includes(account.username)}
+											onCheckedChange={(checked) =>
+												onChange(toggleAccount(selectedAccounts, account.username, checked === true))
+											}
+										/>
+										<Label htmlFor={id} className="cursor-pointer font-mono text-sm">
+											{account.username}
+										</Label>
+									</div>
+									{showCommentCounts && (
+										<Badge variant="secondary" className="shrink-0">
+											{account.commentCount} {commentCountLabel}
+										</Badge>
+									)}
+								</div>
+							);
+						})}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
 export default function Workbench() {
 	const { t } = useTranslation();
 	const { endpoint } = useParams();
 	const queryClient = useQueryClient();
-	const activeMenu = ["search", "caption", "post", "campaign", "fbAccount", "fbFetch", "fbPost"].includes(
+	const activeMenu = ["search", "post", "autoReply", "campaign", "fbAccount", "fbFetch", "fbPost"].includes(
 		endpoint ?? "",
 	)
 		? (endpoint as string)
 		: "search";
+	const accountsQuery = useQuery({
+		queryKey: ["comment-api", "accounts"],
+		queryFn: () => commentAccountsService.list(),
+		staleTime: CACHE_TIME,
+	});
+	const accountOptions = extractAccountOptions(accountsQuery.data);
 	const [healthEnabled, setHealthEnabled] = useState(true);
 	const healthQuery = useQuery({
 		queryKey: ["comment-api", "health"],
@@ -61,31 +183,75 @@ export default function Workbench() {
 	const [searchPeriodHours, setSearchPeriodHours] = useState(24);
 	const [searchType, setSearchType] = useState("all");
 	const [searchAnalyze, setSearchAnalyze] = useState(true);
-	const [searchRequest, setSearchRequest] = useState<SearchRequest | null>(null);
-	const searchQuery = useQuery({
-		queryKey: ["comment-api", "search", searchRequest],
-		queryFn: () => commentSearchService.search(searchRequest as SearchRequest),
-		enabled: searchRequest != null,
-		staleTime: CACHE_TIME,
-		gcTime: CACHE_TIME,
-	});
+	const searchAbortRef = useRef<AbortController | null>(null);
+	const searchStreamStepIdRef = useRef(0);
+	const [searchStreamSteps, setSearchStreamSteps] = useState<SearchStreamStepRow[]>([]);
+	const [searchData, setSearchData] = useState<unknown>();
+	const [searchStreaming, setSearchStreaming] = useState(false);
+	const [searchError, setSearchError] = useState<Error | null>(null);
 
-	const [captionKeyword, setCaptionKeyword] = useState("");
-	const [captionMaxPosts, setCaptionMaxPosts] = useState(20);
-	const [captionPeriodHours, setCaptionPeriodHours] = useState(24);
-	const [captionRequest, setCaptionRequest] = useState<CaptionSearchRequest | null>(null);
-	const captionQuery = useQuery({
-		queryKey: ["comment-api", "caption-search", captionRequest],
-		queryFn: () => commentSearchService.searchCaption(captionRequest as CaptionSearchRequest),
-		enabled: captionRequest != null,
-		staleTime: CACHE_TIME,
-		gcTime: CACHE_TIME,
-	});
+	useEffect(() => {
+		return () => searchAbortRef.current?.abort();
+	}, []);
+
+	const runSearch = () => {
+		const body: SearchRequest = {
+			keyword: searchKeyword.trim(),
+			max_posts: searchMaxPosts,
+			period_hours: searchPeriodHours,
+			search_type: searchType,
+			analyze: searchAnalyze,
+		};
+		searchAbortRef.current?.abort();
+		const ac = new AbortController();
+		searchAbortRef.current = ac;
+		setSearchError(null);
+		setSearchData(undefined);
+		searchStreamStepIdRef.current = 0;
+		setSearchStreamSteps([]);
+		setSearchStreaming(true);
+		let hasResultChunk = false;
+		void commentSearchService
+			.searchStream(body, {
+				signal: ac.signal,
+				onEvent: (chunk) => {
+					const progressStep = getSearchStreamProgressStep(chunk);
+					if (progressStep !== null) {
+						const id = ++searchStreamStepIdRef.current;
+						setSearchStreamSteps((prev) => [...prev, { id, ...progressStep }]);
+						return;
+					}
+					if (hasSearchResultPayload(chunk)) {
+						hasResultChunk = true;
+					}
+					setSearchData((prev: unknown) => mergeSearchStreamChunk(prev, chunk));
+				},
+			})
+			.then(async () => {
+				if (hasResultChunk || ac.signal.aborted || searchAbortRef.current !== ac) {
+					return;
+				}
+				const fallbackResult = await commentSearchService.search(body);
+				if (searchAbortRef.current === ac) {
+					setSearchData(fallbackResult);
+				}
+			})
+			.catch((error: unknown) => {
+				setSearchError(error instanceof Error ? error : new Error(String(error)));
+			})
+			.finally(() => {
+				if (searchAbortRef.current === ac) {
+					setSearchStreaming(false);
+					setSearchStreamSteps([]);
+				}
+			});
+	};
 
 	const [postUrl, setPostUrl] = useState("");
 	const [commentsText, setCommentsText] = useState("");
-	const [numBots, setNumBots] = useState(1);
+	const [postSelectedAccounts, setPostSelectedAccounts] = useState<string[]>([]);
 	const [periodSeconds, setPeriodSeconds] = useState(30);
+	const postCommentCount = linesToArray(commentsText).length;
 	const postCommentsMutation = useMutation({
 		mutationFn: (body: PostCommentsRequest) => commentCommentsService.postComments(body),
 		onSuccess: (data, variables) => {
@@ -93,9 +259,19 @@ export default function Workbench() {
 		},
 	});
 
+	const [autoReplyPostUrl, setAutoReplyPostUrl] = useState("");
+	const [autoReplySelectedAccounts, setAutoReplySelectedAccounts] = useState<string[]>([]);
+	const [autoReplyPeriodSeconds, setAutoReplyPeriodSeconds] = useState(30);
+	const autoReplyMutation = useMutation({
+		mutationFn: (body: AutoReplyRequest) => commentCommentsService.autoReply(body),
+		onSuccess: (data, variables) => {
+			queryClient.setQueryData(["comment-api", "auto-reply", variables], data);
+		},
+	});
+
 	const [campKeyword, setCampKeyword] = useState("");
 	const [campMaxPosts, setCampMaxPosts] = useState(10);
-	const [campNumBots, setCampNumBots] = useState(2);
+	const [campSelectedAccounts, setCampSelectedAccounts] = useState<string[]>([]);
 	const [campPeriodSeconds, setCampPeriodSeconds] = useState(60);
 	const [campPeriodHours, setCampPeriodHours] = useState(24);
 	const [campSearchType, setCampSearchType] = useState("all");
@@ -146,8 +322,16 @@ export default function Workbench() {
 		postCommentsMutation.mutate({
 			url: postUrl.trim(),
 			comments: linesToArray(commentsText),
-			num_bots: numBots,
+			num_bots: postSelectedAccounts.length,
 			period_seconds: periodSeconds,
+		});
+	};
+
+	const runAutoReply = () => {
+		autoReplyMutation.mutate({
+			url: autoReplyPostUrl.trim(),
+			num_bots: autoReplySelectedAccounts.length,
+			period_seconds: autoReplyPeriodSeconds,
 		});
 	};
 
@@ -155,7 +339,7 @@ export default function Workbench() {
 		campaignMutation.mutate({
 			keyword: campKeyword.trim(),
 			max_posts: campMaxPosts,
-			num_bots: campNumBots,
+			num_bots: campSelectedAccounts.length,
 			period_seconds: campPeriodSeconds,
 			period_hours: campPeriodHours,
 			search_type: campSearchType,
@@ -267,70 +451,13 @@ export default function Workbench() {
 								<Label htmlFor="an">{t("sys.workbench.search.analyzeLabel")}</Label>
 							</div>
 						</div>
-						<Button
-							disabled={!searchKeyword.trim() || searchQuery.isFetching}
-							onClick={() =>
-								setSearchRequest({
-									keyword: searchKeyword.trim(),
-									max_posts: searchMaxPosts,
-									period_hours: searchPeriodHours,
-									search_type: searchType,
-									analyze: searchAnalyze,
-								})
-							}
-						>
-							{searchQuery.isFetching ? t("sys.workbench.search.running") : t("sys.workbench.search.run")}
+						<Button disabled={!searchKeyword.trim() || searchStreaming} onClick={runSearch}>
+							{searchStreaming ? t("sys.workbench.search.running") : t("sys.workbench.search.run")}
 						</Button>
-						<ApiLongRunningNotice active={searchQuery.isFetching} />
-						<ApiResultView value={searchQuery.data ?? (searchQuery.isError ? searchQuery.error : undefined)} />
-					</WorkflowShell>
-				</TabsContent>
-
-				<TabsContent value="caption">
-					<WorkflowShell
-						title={t("sys.workbench.caption.cardTitle")}
-						description={t("sys.workbench.caption.hint")}
-						platform="Instagram"
-						intent={t("sys.workbench.intent.discovery")}
-					>
-						<div className="grid gap-3 sm:grid-cols-2">
-							<div className="space-y-2 sm:col-span-2">
-								<Label htmlFor="ck">{t("sys.workbench.caption.keywordLabel")}</Label>
-								<Input id="ck" value={captionKeyword} onChange={(event) => setCaptionKeyword(event.target.value)} />
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="cmp">{t("sys.workbench.caption.maxPostsLabel")}</Label>
-								<Input
-									id="cmp"
-									type="number"
-									value={captionMaxPosts}
-									onChange={(event) => setCaptionMaxPosts(Number(event.target.value))}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="cph">{t("sys.workbench.caption.periodHoursLabel")}</Label>
-								<Input
-									id="cph"
-									type="number"
-									value={captionPeriodHours}
-									onChange={(event) => setCaptionPeriodHours(Number(event.target.value))}
-								/>
-							</div>
-						</div>
-						<Button
-							disabled={!captionKeyword.trim() || captionQuery.isFetching}
-							onClick={() =>
-								setCaptionRequest({
-									keyword: captionKeyword.trim(),
-									max_posts: captionMaxPosts,
-									period_hours: captionPeriodHours,
-								})
-							}
-						>
-							{captionQuery.isFetching ? t("sys.workbench.caption.running") : t("sys.workbench.caption.run")}
-						</Button>
-						<ApiLongRunningNotice active={captionQuery.isFetching} />
-						<ApiResultView value={captionQuery.data ?? (captionQuery.isError ? captionQuery.error : undefined)} />
+						<SearchStreamProgress active={searchStreaming} storageKey="workbench-search" steps={searchStreamSteps} />
+						<ApiResultView
+							value={searchData !== undefined ? searchData : searchError !== null ? searchError : undefined}
+						/>
 					</WorkflowShell>
 				</TabsContent>
 
@@ -356,15 +483,6 @@ export default function Workbench() {
 						</div>
 						<div className="grid gap-3 sm:grid-cols-2">
 							<div className="space-y-2">
-								<Label htmlFor="nb">{t("sys.workbench.post.numBotsLabel")}</Label>
-								<Input
-									id="nb"
-									type="number"
-									value={numBots}
-									onChange={(event) => setNumBots(Number(event.target.value))}
-								/>
-							</div>
-							<div className="space-y-2">
 								<Label htmlFor="ps">{t("sys.workbench.post.periodSecondsLabel")}</Label>
 								<Input
 									id="ps"
@@ -374,17 +492,92 @@ export default function Workbench() {
 								/>
 							</div>
 						</div>
+						<AccountMultiSelect
+							idPrefix="post-response-account"
+							label={t("sys.workbench.shared.responseAccountsLabel")}
+							accounts={accountOptions}
+							selectedAccounts={postSelectedAccounts}
+							isLoading={accountsQuery.isFetching}
+							onChange={setPostSelectedAccounts}
+							onRefresh={() => void accountsQuery.refetch()}
+							commentCountLabel={t("sys.workbench.shared.commentCountLabel")}
+							showCommentCounts
+							loadingText={t("sys.workbench.shared.loadingAccounts")}
+							emptyText={t("sys.workbench.shared.noAccounts")}
+							refreshLabel={t("sys.workbench.shared.refreshAccounts")}
+						/>
 						<Button
-							disabled={!postUrl.trim() || linesToArray(commentsText).length === 0 || postCommentsMutation.isPending}
+							disabled={
+								!postUrl.trim() ||
+								postCommentCount === 0 ||
+								postSelectedAccounts.length === 0 ||
+								postCommentsMutation.isPending
+							}
 							onClick={runPostComments}
 						>
 							{postCommentsMutation.isPending ? t("sys.workbench.post.posting") : t("sys.workbench.post.run")}
 						</Button>
-						<ApiLongRunningNotice active={postCommentsMutation.isPending} />
+						<ApiLongRunningNotice active={postCommentsMutation.isPending} storageKey="workbench-post" />
 						<ApiJsonPreview
 							value={
 								postCommentsMutation.data ?? (postCommentsMutation.isError ? postCommentsMutation.error : undefined)
 							}
+						/>
+					</WorkflowShell>
+				</TabsContent>
+
+				<TabsContent value="autoReply">
+					<WorkflowShell
+						title={t("sys.workbench.autoReply.cardTitle")}
+						description={t("sys.workbench.autoReply.hint")}
+						platform="Instagram"
+						intent={t("sys.workbench.intent.action")}
+					>
+						<div className="space-y-2">
+							<Label htmlFor="auto-reply-url">{t("sys.workbench.post.postUrlLabel")}</Label>
+							<Input
+								id="auto-reply-url"
+								value={autoReplyPostUrl}
+								onChange={(event) => setAutoReplyPostUrl(event.target.value)}
+								placeholder={t("sys.workbench.post.postUrlPlaceholder")}
+							/>
+						</div>
+						<div className="grid gap-3 sm:grid-cols-2">
+							<div className="space-y-2">
+								<Label htmlFor="auto-reply-period">{t("sys.workbench.post.periodSecondsLabel")}</Label>
+								<Input
+									id="auto-reply-period"
+									type="number"
+									value={autoReplyPeriodSeconds}
+									onChange={(event) => setAutoReplyPeriodSeconds(Number(event.target.value))}
+								/>
+							</div>
+						</div>
+						<AccountMultiSelect
+							idPrefix="auto-reply-response-account"
+							label={t("sys.workbench.shared.responseAccountsLabel")}
+							accounts={accountOptions}
+							selectedAccounts={autoReplySelectedAccounts}
+							isLoading={accountsQuery.isFetching}
+							onChange={setAutoReplySelectedAccounts}
+							onRefresh={() => void accountsQuery.refetch()}
+							commentCountLabel={t("sys.workbench.shared.commentCountLabel")}
+							showCommentCounts
+							loadingText={t("sys.workbench.shared.loadingAccounts")}
+							emptyText={t("sys.workbench.shared.noAccounts")}
+							refreshLabel={t("sys.workbench.shared.refreshAccounts")}
+						/>
+						<Button
+							disabled={
+								!autoReplyPostUrl.trim() || autoReplySelectedAccounts.length === 0 || autoReplyMutation.isPending
+							}
+							onClick={runAutoReply}
+						>
+							{autoReplyMutation.isPending ? t("sys.workbench.autoReply.running") : t("sys.workbench.autoReply.run")}
+						</Button>
+						<ApiLongRunningNotice active={autoReplyMutation.isPending} storageKey="workbench-auto-reply" />
+						<ApiResultView
+							value={autoReplyMutation.data ?? (autoReplyMutation.isError ? autoReplyMutation.error : undefined)}
 						/>
 					</WorkflowShell>
 				</TabsContent>
@@ -416,15 +609,6 @@ export default function Workbench() {
 									type="number"
 									value={campMaxPosts}
 									onChange={(event) => setCampMaxPosts(Number(event.target.value))}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="cnb">{t("sys.workbench.campaign.numBotsLabel")}</Label>
-								<Input
-									id="cnb"
-									type="number"
-									value={campNumBots}
-									onChange={(event) => setCampNumBots(Number(event.target.value))}
 								/>
 							</div>
 							<div className="space-y-2">
@@ -464,10 +648,27 @@ export default function Workbench() {
 								onChange={(event) => setCampCommentsText(event.target.value)}
 							/>
 						</div>
-						<Button disabled={!campKeyword.trim() || campaignMutation.isPending} onClick={runCampaign}>
+						<AccountMultiSelect
+							idPrefix="campaign-response-account"
+							label={t("sys.workbench.shared.responseAccountsLabel")}
+							accounts={accountOptions}
+							selectedAccounts={campSelectedAccounts}
+							isLoading={accountsQuery.isFetching}
+							onChange={setCampSelectedAccounts}
+							onRefresh={() => void accountsQuery.refetch()}
+							commentCountLabel={t("sys.workbench.shared.commentCountLabel")}
+							showCommentCounts
+							loadingText={t("sys.workbench.shared.loadingAccounts")}
+							emptyText={t("sys.workbench.shared.noAccounts")}
+							refreshLabel={t("sys.workbench.shared.refreshAccounts")}
+						/>
+						<Button
+							disabled={!campKeyword.trim() || campSelectedAccounts.length === 0 || campaignMutation.isPending}
+							onClick={runCampaign}
+						>
 							{campaignMutation.isPending ? t("sys.workbench.campaign.running") : t("sys.workbench.campaign.run")}
 						</Button>
-						<ApiLongRunningNotice active={campaignMutation.isPending} />
+						<ApiLongRunningNotice active={campaignMutation.isPending} storageKey="workbench-campaign" />
 						<ApiResultView
 							value={campaignMutation.data ?? (campaignMutation.isError ? campaignMutation.error : undefined)}
 						/>
@@ -502,7 +703,7 @@ export default function Workbench() {
 						>
 							{fbAnalyzeQuery.isFetching ? t("sys.workbench.facebook.analyzing") : t("sys.workbench.facebook.analyze")}
 						</Button>
-						<ApiLongRunningNotice active={fbAnalyzeQuery.isFetching} />
+						<ApiLongRunningNotice active={fbAnalyzeQuery.isFetching} storageKey="workbench-facebook-account" />
 						<ApiResultView value={fbAnalyzeQuery.data ?? (fbAnalyzeQuery.isError ? fbAnalyzeQuery.error : undefined)} />
 					</WorkflowShell>
 				</TabsContent>
@@ -524,7 +725,7 @@ export default function Workbench() {
 						>
 							{fbFetchQuery.isFetching ? t("sys.workbench.facebook.fetching") : t("sys.workbench.facebook.fetch")}
 						</Button>
-						<ApiLongRunningNotice active={fbFetchQuery.isFetching} />
+						<ApiLongRunningNotice active={fbFetchQuery.isFetching} storageKey="workbench-facebook-fetch" />
 						<ApiResultView value={fbFetchQuery.data ?? (fbFetchQuery.isError ? fbFetchQuery.error : undefined)} />
 					</WorkflowShell>
 				</TabsContent>
@@ -579,7 +780,7 @@ export default function Workbench() {
 						<Button disabled={!fbPostCommentsUrl.trim() || fbPostMutation.isPending} onClick={runFacebookPost}>
 							{fbPostMutation.isPending ? t("sys.workbench.facebook.posting") : t("sys.workbench.facebook.post")}
 						</Button>
-						<ApiLongRunningNotice active={fbPostMutation.isPending} />
+						<ApiLongRunningNotice active={fbPostMutation.isPending} storageKey="workbench-facebook-post" />
 						<ApiResultView value={fbPostMutation.data ?? (fbPostMutation.isError ? fbPostMutation.error : undefined)} />
 					</WorkflowShell>
 				</TabsContent>

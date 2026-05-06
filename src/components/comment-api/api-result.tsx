@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import Lottie from "lottie-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router";
+import searchAnimation from "@/assets/lotties/search.json";
 import type { AnalyzedComment, AnalyzedPost, CommentsByType, SentimentCounts } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { Progress } from "@/ui/progress";
-import { Skeleton } from "@/ui/skeleton";
 import { Text } from "@/ui/typography";
 import { InsightEmptyState } from "./executive-ui";
 
 const SENTIMENTS = ["positive", "negative", "neutral"] as const;
+const LOADING_START_TIMES = new Map<string, number>();
 
 function toRecord(value: unknown): Record<string, unknown> | null {
 	return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
@@ -30,32 +33,67 @@ function formatElapsed(totalSeconds: number): string {
 
 export function ApiLongRunningNotice({
 	active,
+	storageKey,
 	title,
 	description,
 }: {
 	active: boolean;
+	storageKey?: string;
 	title?: string;
 	description?: string;
 }) {
 	const { t } = useTranslation();
+	const location = useLocation();
 	const [seconds, setSeconds] = useState(0);
+	const startedAtMsRef = useRef<number | null>(null);
+	const wasActiveRef = useRef(false);
+	const noticeKey =
+		storageKey ?? `${location.pathname}::${title ?? "default-title"}::${description ?? "default-description"}`;
 
 	useEffect(() => {
 		if (!active) {
+			if (wasActiveRef.current) {
+				LOADING_START_TIMES.delete(noticeKey);
+			}
+			wasActiveRef.current = false;
+			startedAtMsRef.current = null;
 			setSeconds(0);
 			return undefined;
 		}
-		const timer = window.setInterval(() => setSeconds((current) => current + 1), 1000);
-		return () => window.clearInterval(timer);
-	}, [active]);
+		wasActiveRef.current = true;
+		if (startedAtMsRef.current === null) {
+			startedAtMsRef.current = LOADING_START_TIMES.get(noticeKey) ?? Date.now();
+			LOADING_START_TIMES.set(noticeKey, startedAtMsRef.current);
+		}
+		const syncElapsed = () => {
+			const started = startedAtMsRef.current;
+			if (started === null) return;
+			setSeconds(Math.floor((Date.now() - started) / 1000));
+		};
+		syncElapsed();
+		const timer = window.setInterval(syncElapsed, 1000);
+		const onResume = () => syncElapsed();
+		document.addEventListener("visibilitychange", onResume);
+		window.addEventListener("focus", onResume);
+		window.addEventListener("pageshow", onResume);
+		return () => {
+			window.clearInterval(timer);
+			document.removeEventListener("visibilitychange", onResume);
+			window.removeEventListener("focus", onResume);
+			window.removeEventListener("pageshow", onResume);
+		};
+	}, [active, noticeKey]);
 
 	if (!active) return null;
 
 	return (
 		<Card className="border-primary/20 bg-primary/5">
-			<CardContent className="flex flex-col gap-3 p-4">
-				<div className="flex items-center justify-between gap-3">
-					<div>
+			<CardContent className="flex items-center gap-5 p-4 sm:p-5">
+				<div className="size-40 shrink-0 overflow-hidden rounded-2xl bg-background/70 sm:size-44">
+					<Lottie animationData={searchAnimation} loop autoplay className="size-full scale-[1.1]" />
+				</div>
+				<div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+					<div className="min-w-0">
 						<div className="font-medium">{title ?? t("sys.commentApi.loadingTitle")}</div>
 						<Text variant="caption" className="text-muted-foreground">
 							{description ?? t("sys.commentApi.loadingDescription")}
@@ -64,11 +102,6 @@ export function ApiLongRunningNotice({
 					<Badge variant="info" className="font-mono">
 						{formatElapsed(seconds)}
 					</Badge>
-				</div>
-				<div className="grid gap-2 sm:grid-cols-3">
-					<Skeleton className="h-2" />
-					<Skeleton className="h-2" />
-					<Skeleton className="h-2" />
 				</div>
 			</CardContent>
 		</Card>
@@ -214,23 +247,20 @@ export function GroupedComments({ comments }: { comments?: CommentsByType | unkn
 									{t("sys.commentApi.noCommentsInGroup")}
 								</Text>
 							) : (
-								rows.slice(0, 8).map((comment, index) => (
-									<div
-										key={`${comment.username ?? "user"}-${comment.timestamp ?? index}`}
-										className="rounded-xl border bg-card/60 p-3"
-									>
-										<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-											<span className="font-medium text-foreground">{comment.username ?? "unknown"}</span>
-											<span>{comment.timestamp ?? ""}</span>
+								<div className="max-h-96 space-y-2 overflow-y-auto pr-1">
+									{rows.map((comment, index) => (
+										<div
+											key={`${comment.username ?? "user"}-${comment.timestamp ?? index}`}
+											className="rounded-xl border bg-card/60 p-3"
+										>
+											<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+												<span className="font-medium text-foreground">{comment.username ?? "unknown"}</span>
+												<span>{comment.timestamp ?? ""}</span>
+											</div>
+											<p className="mt-1 text-sm whitespace-pre-wrap">{comment.text ?? JSON.stringify(comment)}</p>
 										</div>
-										<p className="mt-1 text-sm whitespace-pre-wrap">{comment.text ?? JSON.stringify(comment)}</p>
-									</div>
-								))
-							)}
-							{rows.length > 8 && (
-								<Text variant="caption" className="text-muted-foreground">
-									{t("sys.commentApi.moreInDetails", { count: rows.length - 8 })}
-								</Text>
+									))}
+								</div>
 							)}
 						</CardContent>
 					</Card>
@@ -292,6 +322,49 @@ function extractPosts(value: unknown): AnalyzedPost[] {
 	return Array.isArray(posts) ? (posts as AnalyzedPost[]) : [];
 }
 
+function formatPostMetric(value: string | number | undefined): string {
+	if (value === undefined) return "—";
+	if (typeof value === "string" && value.trim() === "") return "—";
+	return String(value);
+}
+
+function PostMetaStrip({ post }: { post: AnalyzedPost }) {
+	const { t } = useTranslation();
+	const hasShortcode = typeof post.shortcode === "string" && post.shortcode.length > 0;
+	const showLikes = post.like_count !== undefined;
+	const showComments = post.comment_count !== undefined;
+	if (!hasShortcode && !showLikes && !showComments) return null;
+
+	return (
+		<div className="flex flex-wrap gap-2">
+			{hasShortcode && (
+				<div className="min-w-[140px] flex-1 rounded-xl border bg-muted/40 px-3 py-2">
+					<div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+						{t("sys.commentApi.post.shortcode")}
+					</div>
+					<div className="mt-0.5 font-mono text-sm break-all">{post.shortcode}</div>
+				</div>
+			)}
+			{showLikes && (
+				<div className="min-w-[100px] flex-1 rounded-xl border bg-muted/40 px-3 py-2">
+					<div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+						{t("sys.commentApi.post.likes")}
+					</div>
+					<div className="mt-0.5 text-sm font-medium">{formatPostMetric(post.like_count)}</div>
+				</div>
+			)}
+			{showComments && (
+				<div className="min-w-[100px] flex-1 rounded-xl border bg-muted/40 px-3 py-2">
+					<div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+						{t("sys.commentApi.post.commentsOnPost")}
+					</div>
+					<div className="mt-0.5 text-sm font-medium">{formatPostMetric(post.comment_count)}</div>
+				</div>
+			)}
+		</div>
+	);
+}
+
 export function ApiResultView({ value, empty }: { value: unknown; empty?: string }) {
 	const { t } = useTranslation();
 	if (value === undefined) {
@@ -309,9 +382,20 @@ export function ApiResultView({ value, empty }: { value: unknown; empty?: string
 	const comments = root?.comments;
 	const overallCards = extractOverallCards(value, t);
 	const rootUsername = typeof root?.username === "string" ? root.username : undefined;
+	const streamTotal = typeof root?.total === "number" ? root.total : undefined;
 
 	return (
 		<div className="flex flex-col gap-4">
+			{overallCards.length === 0 && streamTotal !== undefined && (
+				<Card className="border-primary/15 bg-primary/5">
+					<CardContent className="p-4">
+						<div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+							{t("sys.commentApi.totalInResponse")}
+						</div>
+						<div className="mt-1 text-2xl font-semibold">{streamTotal}</div>
+					</CardContent>
+				</Card>
+			)}
 			{overallCards.length > 0 && (
 				<Card className="bg-gradient-to-br from-primary/10 via-background to-background">
 					<CardHeader className="pb-2">
@@ -360,6 +444,7 @@ export function ApiResultView({ value, empty }: { value: unknown; empty?: string
 								)}
 							</CardHeader>
 							<CardContent className="flex flex-col gap-3">
+								<PostMetaStrip post={post} />
 								{post.caption && <p className="text-sm whitespace-pre-wrap">{post.caption}</p>}
 								{post.caption_analysis && (
 									<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

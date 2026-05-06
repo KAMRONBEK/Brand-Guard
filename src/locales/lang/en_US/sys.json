@@ -177,8 +177,8 @@
 			"resumePolling": "Resume status checks",
 			"tabs": {
 				"search": "Find mentions",
-				"caption": "Caption topics",
 				"post": "Publish responses",
+				"autoReply": "Auto replies",
 				"campaign": "Response campaign",
 				"facebookAccount": "Facebook overview",
 				"facebookFetch": "Facebook post review",
@@ -188,6 +188,13 @@
 				"discovery": "Discovery",
 				"report": "Report",
 				"action": "Action"
+			},
+			"shared": {
+				"responseAccountsLabel": "Response accounts",
+				"commentCountLabel": "comments",
+				"refreshAccounts": "Refresh accounts",
+				"loadingAccounts": "Loading accounts…",
+				"noAccounts": "No response accounts found. Add accounts in Management > System > Accounts."
 			},
 			"search": {
 				"cardTitle": "Find Instagram mentions",
@@ -200,16 +207,10 @@
 				"periodHoursLabel": "Time range (hours)",
 				"analyzeLabel": "Include sentiment analysis",
 				"run": "Find mentions",
-				"running": "Scanning Instagram…"
-			},
-			"caption": {
-				"cardTitle": "Find posts by caption topic",
-				"hint": "Discover posts where the caption talks about a topic, then review audience mood.",
-				"keywordLabel": "Topic or phrase",
-				"maxPostsLabel": "Posts to scan",
-				"periodHoursLabel": "Time range (hours)",
-				"run": "Find topic posts",
-				"running": "Finding topic posts…"
+				"running": "Scanning Instagram…",
+				"streamProgressTitle": "Live progress",
+				"streamProgressSubtitle": "Each line is an update from the search service.",
+				"streamProgressWaiting": "Waiting for the first update…"
 			},
 			"post": {
 				"cardTitle": "Publish prepared responses",
@@ -221,6 +222,12 @@
 				"periodSecondsLabel": "Delay between comments (seconds)",
 				"run": "Publish responses",
 				"posting": "Publishing responses…"
+			},
+			"autoReply": {
+				"cardTitle": "Auto-reply to negative comments",
+				"hint": "Analyze a post, skip high-severity negatives, and reply to lower-severity negatives with selected response accounts.",
+				"run": "Start auto-reply",
+				"running": "Running auto-reply…"
 			},
 			"campaign": {
 				"cardTitle": "Launch a response campaign",
@@ -353,7 +360,13 @@
 				"positiveVsNegative": "Positive vs negative",
 				"topCategory": "Top category",
 				"mostCommonPostType": "Most common post type"
-			}
+			},
+			"post": {
+				"shortcode": "Shortcode",
+				"likes": "Likes",
+				"commentsOnPost": "Comments on post"
+			},
+			"totalInResponse": "Posts in this response"
 		},
 		"i18nPage": {
 			"cardTitle": "Multi-language",

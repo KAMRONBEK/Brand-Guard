@@ -33,6 +33,7 @@ export interface CaptionAnalysis {
 
 export interface AnalyzedPost {
 	url?: string;
+	shortcode?: string;
 	username?: string;
 	author?: string;
 	caption?: string;
@@ -57,6 +58,7 @@ export interface AccountAnalyzeResponse {
 export interface SearchResponse {
 	keyword?: string;
 	keywords?: string[];
+	total?: number;
 	overall?: {
 		total_posts?: number;
 		total_comments?: number;
@@ -76,12 +78,6 @@ export interface SearchRequest {
 	analyze?: boolean;
 }
 
-export interface CaptionSearchRequest {
-	keyword?: string;
-	max_posts?: number;
-	period_hours?: number;
-}
-
 export interface FetchRequest {
 	url: string;
 }
@@ -97,6 +93,12 @@ export interface FetchResponse {
 export interface PostCommentsRequest {
 	url: string;
 	comments: string[];
+	num_bots?: number;
+	period_seconds?: number;
+}
+
+export interface AutoReplyRequest {
+	url: string;
 	num_bots?: number;
 	period_seconds?: number;
 }
