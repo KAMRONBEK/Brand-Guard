@@ -196,6 +196,11 @@
 				"loadingAccounts": "Loading accounts…",
 				"noAccounts": "No response accounts found. Add accounts in Management > System > Accounts."
 			},
+			"generationTone": {
+				"positive": "Positive",
+				"neutral": "Neutral",
+				"negative": "Negative"
+			},
 			"search": {
 				"cardTitle": "Find Instagram mentions",
 				"hint": "Scan Instagram for brand, competitor, or campaign mentions and get a simple sentiment summary.",
@@ -227,7 +232,10 @@
 				"cardTitle": "Auto-reply to negative comments",
 				"hint": "Analyze a post, skip high-severity negatives, and reply to lower-severity negatives with selected response accounts.",
 				"run": "Start auto-reply",
-				"running": "Running auto-reply…"
+				"running": "Running auto-reply…",
+				"streamProgressTitle": "Auto-reply progress",
+				"streamProgressSubtitle": "Live steps from the auto-reply service.",
+				"streamProgressWaiting": "Waiting for the first update…"
 			},
 			"campaign": {
 				"cardTitle": "Launch a response campaign",
@@ -250,7 +258,12 @@
 				"postTitle": "Publish Facebook responses",
 				"heavyHint": "Review recent Facebook posts and audience sentiment. This can take 1-2 minutes per post.",
 				"fetchHint": "Paste a Facebook post link to summarize its comments and sentiment.",
-				"postHint": "Provide comments, or leave them empty to auto-generate by tone and count.",
+				"postHint": "Choose whether you write comments yourself or Brand Guard generates them, then publish.",
+				"postModeLabel": "Comment source",
+				"postModeManual": "I write comments",
+				"postModeManualHint": "Enter one comment per line. They will be posted as written.",
+				"postModeAuto": "Auto-generate comments",
+				"postModeAutoHint": "Suggested tone and count control how suggestions are generated.",
 				"usernameLabel": "Page name or full URL",
 				"maxPostsLabel": "Posts to scan",
 				"postUrlLabel": "Facebook post URL",
@@ -263,7 +276,14 @@
 				"fetch": "Review post",
 				"fetching": "Reviewing Facebook post…",
 				"post": "Publish responses",
-				"posting": "Publishing Facebook responses…"
+				"posting": "Publishing Facebook responses…",
+				"accountStreamProgressTitle": "Page analysis progress",
+				"accountStreamProgressSubtitle": "Live steps while the page is analyzed.",
+				"fetchStreamProgressTitle": "Post review progress",
+				"fetchStreamProgressSubtitle": "Live steps while comments are reviewed.",
+				"postStreamProgressTitle": "Publish progress",
+				"postStreamProgressSubtitle": "Live steps while responses are published.",
+				"streamProgressWaiting": "Waiting for the first update…"
 			}
 		},
 		"analysis": {

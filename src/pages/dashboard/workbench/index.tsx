@@ -14,20 +14,23 @@ import { ApiJsonPreview, ApiLongRunningNotice, ApiResultView } from "@/component
 import { WorkflowShell } from "@/components/comment-api/executive-ui";
 import { SearchStreamProgress, type SearchStreamStepRow } from "@/components/comment-api/search-stream-progress";
 import Icon from "@/components/icon/icon";
-import type {
-	AutoReplyRequest,
-	CampaignRequest,
-	FacebookAccountAnalyzeRequest,
-	FacebookFetchRequest,
-	FacebookPostCommentRequest,
-	PostCommentsRequest,
-	SearchRequest,
+import {
+	type AutoReplyRequest,
+	type CampaignRequest,
+	COMMENT_GENERATION_TONES,
+	type CommentGenerationTone,
+	type FacebookAccountAnalyzeRequest,
+	type FacebookFetchRequest,
+	type FacebookPostCommentRequest,
+	type PostCommentsRequest,
+	type SearchRequest,
 } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Checkbox } from "@/ui/checkbox";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Tabs, TabsContent } from "@/ui/tabs";
 import { Textarea } from "@/ui/textarea";
@@ -37,8 +40,17 @@ import {
 	hasSearchResultPayload,
 	mergeSearchStreamChunk,
 } from "@/utils/mergeSearchStreamChunk";
+import {
+	hasAutoReplyStreamResultPayload,
+	hasFbAnalyzeStreamResultPayload,
+	hasFbFetchStreamResultPayload,
+	hasFbPostStreamResultPayload,
+	mergeWorkbenchStreamChunk,
+} from "@/utils/mergeWorkbenchStreamChunk";
 
 const CACHE_TIME = 1000 * 60 * 30;
+
+type FbPostCommentsMode = "manual" | "auto";
 
 interface AccountOption {
 	commentCount: number;
@@ -190,8 +202,26 @@ export default function Workbench() {
 	const [searchStreaming, setSearchStreaming] = useState(false);
 	const [searchError, setSearchError] = useState<Error | null>(null);
 
+	const autoReplyAbortRef = useRef<AbortController | null>(null);
+	const autoReplyStreamStepIdRef = useRef(0);
+
+	const fbAnalyzeAbortRef = useRef<AbortController | null>(null);
+	const fbAnalyzeStreamStepIdRef = useRef(0);
+
+	const fbFetchAbortRef = useRef<AbortController | null>(null);
+	const fbFetchStreamStepIdRef = useRef(0);
+
+	const fbPostAbortRef = useRef<AbortController | null>(null);
+	const fbPostStreamStepIdRef = useRef(0);
+
 	useEffect(() => {
-		return () => searchAbortRef.current?.abort();
+		return () => {
+			searchAbortRef.current?.abort();
+			autoReplyAbortRef.current?.abort();
+			fbAnalyzeAbortRef.current?.abort();
+			fbFetchAbortRef.current?.abort();
+			fbPostAbortRef.current?.abort();
+		};
 	}, []);
 
 	const runSearch = () => {
@@ -262,12 +292,10 @@ export default function Workbench() {
 	const [autoReplyPostUrl, setAutoReplyPostUrl] = useState("");
 	const [autoReplySelectedAccounts, setAutoReplySelectedAccounts] = useState<string[]>([]);
 	const [autoReplyPeriodSeconds, setAutoReplyPeriodSeconds] = useState(30);
-	const autoReplyMutation = useMutation({
-		mutationFn: (body: AutoReplyRequest) => commentCommentsService.autoReply(body),
-		onSuccess: (data, variables) => {
-			queryClient.setQueryData(["comment-api", "auto-reply", variables], data);
-		},
-	});
+	const [autoReplyStreamSteps, setAutoReplyStreamSteps] = useState<SearchStreamStepRow[]>([]);
+	const [autoReplyData, setAutoReplyData] = useState<unknown>();
+	const [autoReplyStreaming, setAutoReplyStreaming] = useState(false);
+	const [autoReplyError, setAutoReplyError] = useState<Error | null>(null);
 
 	const [campKeyword, setCampKeyword] = useState("");
 	const [campMaxPosts, setCampMaxPosts] = useState(10);
@@ -275,7 +303,7 @@ export default function Workbench() {
 	const [campPeriodSeconds, setCampPeriodSeconds] = useState(60);
 	const [campPeriodHours, setCampPeriodHours] = useState(24);
 	const [campSearchType, setCampSearchType] = useState("all");
-	const [campTone, setCampTone] = useState("neutral");
+	const [campTone, setCampTone] = useState<CommentGenerationTone>("neutral");
 	const [campGenerateCount, setCampGenerateCount] = useState(5);
 	const [campCommentsText, setCampCommentsText] = useState("");
 	const campaignMutation = useMutation({
@@ -287,36 +315,27 @@ export default function Workbench() {
 
 	const [fbUsername, setFbUsername] = useState("");
 	const [fbMaxPosts, setFbMaxPosts] = useState(1);
-	const [fbAnalyzeRequest, setFbAnalyzeRequest] = useState<FacebookAccountAnalyzeRequest | null>(null);
-	const fbAnalyzeQuery = useQuery({
-		queryKey: ["comment-api", "facebook", "account-analyze", fbAnalyzeRequest],
-		queryFn: () => commentFacebookService.analyzeAccount(fbAnalyzeRequest as FacebookAccountAnalyzeRequest),
-		enabled: fbAnalyzeRequest != null,
-		staleTime: CACHE_TIME,
-		gcTime: CACHE_TIME,
-	});
+	const [fbAnalyzeStreamSteps, setFbAnalyzeStreamSteps] = useState<SearchStreamStepRow[]>([]);
+	const [fbAnalyzeData, setFbAnalyzeData] = useState<unknown>();
+	const [fbAnalyzeStreaming, setFbAnalyzeStreaming] = useState(false);
+	const [fbAnalyzeError, setFbAnalyzeError] = useState<Error | null>(null);
 
 	const [fbPostUrl, setFbPostUrl] = useState("");
-	const [fbFetchRequest, setFbFetchRequest] = useState<FacebookFetchRequest | null>(null);
-	const fbFetchQuery = useQuery({
-		queryKey: ["comment-api", "facebook", "comments-fetch", fbFetchRequest],
-		queryFn: () => commentFacebookService.fetchComments(fbFetchRequest as FacebookFetchRequest),
-		enabled: fbFetchRequest != null,
-		staleTime: CACHE_TIME,
-		gcTime: CACHE_TIME,
-	});
+	const [fbFetchStreamSteps, setFbFetchStreamSteps] = useState<SearchStreamStepRow[]>([]);
+	const [fbFetchData, setFbFetchData] = useState<unknown>();
+	const [fbFetchStreaming, setFbFetchStreaming] = useState(false);
+	const [fbFetchError, setFbFetchError] = useState<Error | null>(null);
 
 	const [fbPostCommentsUrl, setFbPostCommentsUrl] = useState("");
+	const [fbPostCommentsMode, setFbPostCommentsMode] = useState<FbPostCommentsMode>("auto");
 	const [fbCommentsText, setFbCommentsText] = useState("");
-	const [fbGenerateTone, setFbGenerateTone] = useState("positive");
+	const [fbGenerateTone, setFbGenerateTone] = useState<CommentGenerationTone>("positive");
 	const [fbGenerateCount, setFbGenerateCount] = useState(3);
 	const [fbPostPeriodSeconds, setFbPostPeriodSeconds] = useState(30);
-	const fbPostMutation = useMutation({
-		mutationFn: (body: FacebookPostCommentRequest) => commentFacebookService.postComments(body),
-		onSuccess: (data, variables) => {
-			queryClient.setQueryData(["comment-api", "facebook", "comments-post", variables], data);
-		},
-	});
+	const [fbPostStreamSteps, setFbPostStreamSteps] = useState<SearchStreamStepRow[]>([]);
+	const [fbPostData, setFbPostData] = useState<unknown>();
+	const [fbPostStreaming, setFbPostStreaming] = useState(false);
+	const [fbPostError, setFbPostError] = useState<Error | null>(null);
 
 	const runPostComments = () => {
 		postCommentsMutation.mutate({
@@ -328,11 +347,220 @@ export default function Workbench() {
 	};
 
 	const runAutoReply = () => {
-		autoReplyMutation.mutate({
+		const body: AutoReplyRequest = {
 			url: autoReplyPostUrl.trim(),
 			num_bots: autoReplySelectedAccounts.length,
 			period_seconds: autoReplyPeriodSeconds,
-		});
+		};
+		autoReplyAbortRef.current?.abort();
+		const ac = new AbortController();
+		autoReplyAbortRef.current = ac;
+		setAutoReplyError(null);
+		setAutoReplyData(undefined);
+		autoReplyStreamStepIdRef.current = 0;
+		setAutoReplyStreamSteps([]);
+		setAutoReplyStreaming(true);
+		let hasResultChunk = false;
+
+		void commentCommentsService
+			.autoReplyStream(body, {
+				signal: ac.signal,
+				onEvent: (chunk) => {
+					const progressStep = getSearchStreamProgressStep(chunk);
+					if (progressStep !== null) {
+						const id = ++autoReplyStreamStepIdRef.current;
+						setAutoReplyStreamSteps((prev) => [...prev, { id, ...progressStep }]);
+						return;
+					}
+					if (hasAutoReplyStreamResultPayload(chunk)) {
+						hasResultChunk = true;
+					}
+					setAutoReplyData((prev: unknown) => mergeWorkbenchStreamChunk("autoReply", prev, chunk));
+				},
+			})
+			.then(async () => {
+				if (hasResultChunk || ac.signal.aborted || autoReplyAbortRef.current !== ac) {
+					return;
+				}
+				const fallbackResult = await commentCommentsService.autoReply(body);
+				if (autoReplyAbortRef.current === ac) {
+					setAutoReplyData(fallbackResult);
+					queryClient.setQueryData(["comment-api", "auto-reply", body], fallbackResult);
+				}
+			})
+			.catch((error: unknown) => {
+				setAutoReplyError(error instanceof Error ? error : new Error(String(error)));
+			})
+			.finally(() => {
+				if (autoReplyAbortRef.current === ac) {
+					setAutoReplyStreaming(false);
+					setAutoReplyStreamSteps([]);
+				}
+			});
+	};
+
+	const runFacebookAnalyze = () => {
+		const body: FacebookAccountAnalyzeRequest = {
+			username: fbUsername.trim(),
+			max_posts: fbMaxPosts,
+		};
+		fbAnalyzeAbortRef.current?.abort();
+		const ac = new AbortController();
+		fbAnalyzeAbortRef.current = ac;
+		setFbAnalyzeError(null);
+		setFbAnalyzeData(undefined);
+		fbAnalyzeStreamStepIdRef.current = 0;
+		setFbAnalyzeStreamSteps([]);
+		setFbAnalyzeStreaming(true);
+		let hasResultChunk = false;
+
+		void commentFacebookService
+			.analyzeAccountStream(body, {
+				signal: ac.signal,
+				onEvent: (chunk) => {
+					const progressStep = getSearchStreamProgressStep(chunk);
+					if (progressStep !== null) {
+						const id = ++fbAnalyzeStreamStepIdRef.current;
+						setFbAnalyzeStreamSteps((prev) => [...prev, { id, ...progressStep }]);
+						return;
+					}
+					if (hasFbAnalyzeStreamResultPayload(chunk)) {
+						hasResultChunk = true;
+					}
+					setFbAnalyzeData((prev: unknown) => mergeWorkbenchStreamChunk("fbAnalyze", prev, chunk));
+				},
+			})
+			.then(async () => {
+				if (hasResultChunk || ac.signal.aborted || fbAnalyzeAbortRef.current !== ac) {
+					return;
+				}
+				const fallbackResult = await commentFacebookService.analyzeAccount(body);
+				if (fbAnalyzeAbortRef.current === ac) {
+					setFbAnalyzeData(fallbackResult);
+					queryClient.setQueryData(["comment-api", "facebook", "account-analyze", body], fallbackResult);
+				}
+			})
+			.catch((error: unknown) => {
+				setFbAnalyzeError(error instanceof Error ? error : new Error(String(error)));
+			})
+			.finally(() => {
+				if (fbAnalyzeAbortRef.current === ac) {
+					setFbAnalyzeStreaming(false);
+					setFbAnalyzeStreamSteps([]);
+				}
+			});
+	};
+
+	const runFacebookFetch = () => {
+		const body: FacebookFetchRequest = { url: fbPostUrl.trim() };
+		fbFetchAbortRef.current?.abort();
+		const ac = new AbortController();
+		fbFetchAbortRef.current = ac;
+		setFbFetchError(null);
+		setFbFetchData(undefined);
+		fbFetchStreamStepIdRef.current = 0;
+		setFbFetchStreamSteps([]);
+		setFbFetchStreaming(true);
+		let hasResultChunk = false;
+
+		void commentFacebookService
+			.fetchCommentsStream(body, {
+				signal: ac.signal,
+				onEvent: (chunk) => {
+					const progressStep = getSearchStreamProgressStep(chunk);
+					if (progressStep !== null) {
+						const id = ++fbFetchStreamStepIdRef.current;
+						setFbFetchStreamSteps((prev) => [...prev, { id, ...progressStep }]);
+						return;
+					}
+					if (hasFbFetchStreamResultPayload(chunk)) {
+						hasResultChunk = true;
+					}
+					setFbFetchData((prev: unknown) => mergeWorkbenchStreamChunk("fbFetch", prev, chunk));
+				},
+			})
+			.then(async () => {
+				if (hasResultChunk || ac.signal.aborted || fbFetchAbortRef.current !== ac) {
+					return;
+				}
+				const fallbackResult = await commentFacebookService.fetchComments(body);
+				if (fbFetchAbortRef.current === ac) {
+					setFbFetchData(fallbackResult);
+					queryClient.setQueryData(["comment-api", "facebook", "comments-fetch", body], fallbackResult);
+				}
+			})
+			.catch((error: unknown) => {
+				setFbFetchError(error instanceof Error ? error : new Error(String(error)));
+			})
+			.finally(() => {
+				if (fbFetchAbortRef.current === ac) {
+					setFbFetchStreaming(false);
+					setFbFetchStreamSteps([]);
+				}
+			});
+	};
+
+	const buildFacebookPostBody = (): FacebookPostCommentRequest => {
+		const base = {
+			url: fbPostCommentsUrl.trim(),
+			period_seconds: fbPostPeriodSeconds,
+		};
+		if (fbPostCommentsMode === "manual") {
+			return { ...base, comments: linesToArray(fbCommentsText) };
+		}
+		return {
+			...base,
+			auto_generate: { tone: fbGenerateTone, count: fbGenerateCount },
+		};
+	};
+
+	const runFacebookPost = () => {
+		const body = buildFacebookPostBody();
+		fbPostAbortRef.current?.abort();
+		const ac = new AbortController();
+		fbPostAbortRef.current = ac;
+		setFbPostError(null);
+		setFbPostData(undefined);
+		fbPostStreamStepIdRef.current = 0;
+		setFbPostStreamSteps([]);
+		setFbPostStreaming(true);
+		let hasResultChunk = false;
+
+		void commentFacebookService
+			.postCommentsStream(body, {
+				signal: ac.signal,
+				onEvent: (chunk) => {
+					const progressStep = getSearchStreamProgressStep(chunk);
+					if (progressStep !== null) {
+						const id = ++fbPostStreamStepIdRef.current;
+						setFbPostStreamSteps((prev) => [...prev, { id, ...progressStep }]);
+						return;
+					}
+					if (hasFbPostStreamResultPayload(chunk)) {
+						hasResultChunk = true;
+					}
+					setFbPostData((prev: unknown) => mergeWorkbenchStreamChunk("fbPost", prev, chunk));
+				},
+			})
+			.then(async () => {
+				if (hasResultChunk || ac.signal.aborted || fbPostAbortRef.current !== ac) {
+					return;
+				}
+				const fallbackResult = await commentFacebookService.postComments(body);
+				if (fbPostAbortRef.current === ac) {
+					setFbPostData(fallbackResult);
+					queryClient.setQueryData(["comment-api", "facebook", "comments-post", body], fallbackResult);
+				}
+			})
+			.catch((error: unknown) => {
+				setFbPostError(error instanceof Error ? error : new Error(String(error)));
+			})
+			.finally(() => {
+				if (fbPostAbortRef.current === ac) {
+					setFbPostStreaming(false);
+					setFbPostStreamSteps([]);
+				}
+			});
 	};
 
 	const runCampaign = () => {
@@ -346,15 +574,6 @@ export default function Workbench() {
 			tone: campTone,
 			generate_count: campGenerateCount,
 			comments: campCommentsText ? linesToArray(campCommentsText) : undefined,
-		});
-	};
-
-	const runFacebookPost = () => {
-		const comments = linesToArray(fbCommentsText);
-		fbPostMutation.mutate({
-			url: fbPostCommentsUrl.trim(),
-			period_seconds: fbPostPeriodSeconds,
-			...(comments.length > 0 ? { comments } : { auto_generate: { tone: fbGenerateTone, count: fbGenerateCount } }),
 		});
 	};
 
@@ -568,16 +787,22 @@ export default function Workbench() {
 							refreshLabel={t("sys.workbench.shared.refreshAccounts")}
 						/>
 						<Button
-							disabled={
-								!autoReplyPostUrl.trim() || autoReplySelectedAccounts.length === 0 || autoReplyMutation.isPending
-							}
+							disabled={!autoReplyPostUrl.trim() || autoReplySelectedAccounts.length === 0 || autoReplyStreaming}
 							onClick={runAutoReply}
 						>
-							{autoReplyMutation.isPending ? t("sys.workbench.autoReply.running") : t("sys.workbench.autoReply.run")}
+							{autoReplyStreaming ? t("sys.workbench.autoReply.running") : t("sys.workbench.autoReply.run")}
 						</Button>
-						<ApiLongRunningNotice active={autoReplyMutation.isPending} storageKey="workbench-auto-reply" />
+						<SearchStreamProgress
+							active={autoReplyStreaming}
+							storageKey="workbench-auto-reply-stream"
+							steps={autoReplyStreamSteps}
+							title={t("sys.workbench.autoReply.streamProgressTitle")}
+							subtitle={t("sys.workbench.autoReply.streamProgressSubtitle")}
+							waitingText={t("sys.workbench.autoReply.streamProgressWaiting")}
+							runningLabel={t("sys.workbench.autoReply.running")}
+						/>
 						<ApiResultView
-							value={autoReplyMutation.data ?? (autoReplyMutation.isError ? autoReplyMutation.error : undefined)}
+							value={autoReplyData !== undefined ? autoReplyData : autoReplyError !== null ? autoReplyError : undefined}
 						/>
 					</WorkflowShell>
 				</TabsContent>
@@ -600,7 +825,18 @@ export default function Workbench() {
 							</div>
 							<div className="space-y-2">
 								<Label htmlFor="ctone">{t("sys.workbench.campaign.toneLabel")}</Label>
-								<Input id="ctone" value={campTone} onChange={(event) => setCampTone(event.target.value)} />
+								<Select value={campTone} onValueChange={(v) => setCampTone(v as CommentGenerationTone)}>
+									<SelectTrigger id="ctone">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										{COMMENT_GENERATION_TONES.map((tone) => (
+											<SelectItem key={tone} value={tone}>
+												{t(`sys.workbench.generationTone.${tone}`)}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
 							<div className="space-y-2">
 								<Label htmlFor="cmax">{t("sys.workbench.campaign.maxPostsLabel")}</Label>
@@ -697,14 +933,21 @@ export default function Workbench() {
 								/>
 							</div>
 						</div>
-						<Button
-							disabled={!fbUsername.trim() || fbAnalyzeQuery.isFetching}
-							onClick={() => setFbAnalyzeRequest({ username: fbUsername.trim(), max_posts: fbMaxPosts })}
-						>
-							{fbAnalyzeQuery.isFetching ? t("sys.workbench.facebook.analyzing") : t("sys.workbench.facebook.analyze")}
+						<Button disabled={!fbUsername.trim() || fbAnalyzeStreaming} onClick={runFacebookAnalyze}>
+							{fbAnalyzeStreaming ? t("sys.workbench.facebook.analyzing") : t("sys.workbench.facebook.analyze")}
 						</Button>
-						<ApiLongRunningNotice active={fbAnalyzeQuery.isFetching} storageKey="workbench-facebook-account" />
-						<ApiResultView value={fbAnalyzeQuery.data ?? (fbAnalyzeQuery.isError ? fbAnalyzeQuery.error : undefined)} />
+						<SearchStreamProgress
+							active={fbAnalyzeStreaming}
+							storageKey="workbench-facebook-account-stream"
+							steps={fbAnalyzeStreamSteps}
+							title={t("sys.workbench.facebook.accountStreamProgressTitle")}
+							subtitle={t("sys.workbench.facebook.accountStreamProgressSubtitle")}
+							waitingText={t("sys.workbench.facebook.streamProgressWaiting")}
+							runningLabel={t("sys.workbench.facebook.analyzing")}
+						/>
+						<ApiResultView
+							value={fbAnalyzeData !== undefined ? fbAnalyzeData : fbAnalyzeError !== null ? fbAnalyzeError : undefined}
+						/>
 					</WorkflowShell>
 				</TabsContent>
 
@@ -719,14 +962,21 @@ export default function Workbench() {
 							<Label htmlFor="fburl">{t("sys.workbench.facebook.postUrlLabel")}</Label>
 							<Input id="fburl" value={fbPostUrl} onChange={(event) => setFbPostUrl(event.target.value)} />
 						</div>
-						<Button
-							disabled={!fbPostUrl.trim() || fbFetchQuery.isFetching}
-							onClick={() => setFbFetchRequest({ url: fbPostUrl.trim() })}
-						>
-							{fbFetchQuery.isFetching ? t("sys.workbench.facebook.fetching") : t("sys.workbench.facebook.fetch")}
+						<Button disabled={!fbPostUrl.trim() || fbFetchStreaming} onClick={runFacebookFetch}>
+							{fbFetchStreaming ? t("sys.workbench.facebook.fetching") : t("sys.workbench.facebook.fetch")}
 						</Button>
-						<ApiLongRunningNotice active={fbFetchQuery.isFetching} storageKey="workbench-facebook-fetch" />
-						<ApiResultView value={fbFetchQuery.data ?? (fbFetchQuery.isError ? fbFetchQuery.error : undefined)} />
+						<SearchStreamProgress
+							active={fbFetchStreaming}
+							storageKey="workbench-facebook-fetch-stream"
+							steps={fbFetchStreamSteps}
+							title={t("sys.workbench.facebook.fetchStreamProgressTitle")}
+							subtitle={t("sys.workbench.facebook.fetchStreamProgressSubtitle")}
+							waitingText={t("sys.workbench.facebook.streamProgressWaiting")}
+							runningLabel={t("sys.workbench.facebook.fetching")}
+						/>
+						<ApiResultView
+							value={fbFetchData !== undefined ? fbFetchData : fbFetchError !== null ? fbFetchError : undefined}
+						/>
 					</WorkflowShell>
 				</TabsContent>
 
@@ -745,43 +995,110 @@ export default function Workbench() {
 								onChange={(event) => setFbPostCommentsUrl(event.target.value)}
 							/>
 						</div>
+
+						<div className="space-y-3">
+							<Label className="text-sm font-medium">{t("sys.workbench.facebook.postModeLabel")}</Label>
+							<RadioGroup
+								value={fbPostCommentsMode}
+								onValueChange={(value) => setFbPostCommentsMode(value as FbPostCommentsMode)}
+								className="grid gap-3 sm:grid-cols-2"
+							>
+								<div className="flex items-start gap-3 rounded-lg border border-border p-3">
+									<RadioGroupItem value="manual" id="fb-mode-manual" className="mt-0.5" />
+									<div className="grid gap-1">
+										<Label htmlFor="fb-mode-manual" className="cursor-pointer leading-none font-normal">
+											{t("sys.workbench.facebook.postModeManual")}
+										</Label>
+										<Text variant="caption" className="text-muted-foreground">
+											{t("sys.workbench.facebook.postModeManualHint")}
+										</Text>
+									</div>
+								</div>
+								<div className="flex items-start gap-3 rounded-lg border border-border p-3">
+									<RadioGroupItem value="auto" id="fb-mode-auto" className="mt-0.5" />
+									<div className="grid gap-1">
+										<Label htmlFor="fb-mode-auto" className="cursor-pointer leading-none font-normal">
+											{t("sys.workbench.facebook.postModeAuto")}
+										</Label>
+										<Text variant="caption" className="text-muted-foreground">
+											{t("sys.workbench.facebook.postModeAutoHint")}
+										</Text>
+									</div>
+								</div>
+							</RadioGroup>
+						</div>
+
+						{fbPostCommentsMode === "manual" ? (
+							<div className="space-y-2">
+								<Label htmlFor="fbcomments">{t("sys.workbench.facebook.commentsLabel")}</Label>
+								<Textarea
+									id="fbcomments"
+									value={fbCommentsText}
+									onChange={(event) => setFbCommentsText(event.target.value)}
+								/>
+							</div>
+						) : (
+							<div className="grid gap-3 sm:grid-cols-2">
+								<div className="space-y-2">
+									<Label htmlFor="fbton">{t("sys.workbench.facebook.toneLabel")}</Label>
+									<Select value={fbGenerateTone} onValueChange={(v) => setFbGenerateTone(v as CommentGenerationTone)}>
+										<SelectTrigger id="fbton">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{COMMENT_GENERATION_TONES.map((tone) => (
+												<SelectItem key={tone} value={tone}>
+													{t(`sys.workbench.generationTone.${tone}`)}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="fbcnt">{t("sys.workbench.facebook.generateCountLabel")}</Label>
+									<Input
+										id="fbcnt"
+										type="number"
+										min={1}
+										value={fbGenerateCount}
+										onChange={(event) => setFbGenerateCount(Number(event.target.value))}
+									/>
+								</div>
+							</div>
+						)}
+
 						<div className="space-y-2">
-							<Label htmlFor="fbcomments">{t("sys.workbench.facebook.commentsLabel")}</Label>
-							<Textarea
-								id="fbcomments"
-								value={fbCommentsText}
-								onChange={(event) => setFbCommentsText(event.target.value)}
+							<Label htmlFor="fbps">{t("sys.workbench.facebook.periodSecondsLabel")}</Label>
+							<Input
+								id="fbps"
+								type="number"
+								value={fbPostPeriodSeconds}
+								onChange={(event) => setFbPostPeriodSeconds(Number(event.target.value))}
 							/>
 						</div>
-						<div className="grid gap-3 sm:grid-cols-3">
-							<div className="space-y-2">
-								<Label htmlFor="fbton">{t("sys.workbench.facebook.toneLabel")}</Label>
-								<Input id="fbton" value={fbGenerateTone} onChange={(event) => setFbGenerateTone(event.target.value)} />
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="fbcnt">{t("sys.workbench.facebook.generateCountLabel")}</Label>
-								<Input
-									id="fbcnt"
-									type="number"
-									value={fbGenerateCount}
-									onChange={(event) => setFbGenerateCount(Number(event.target.value))}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="fbps">{t("sys.workbench.facebook.periodSecondsLabel")}</Label>
-								<Input
-									id="fbps"
-									type="number"
-									value={fbPostPeriodSeconds}
-									onChange={(event) => setFbPostPeriodSeconds(Number(event.target.value))}
-								/>
-							</div>
-						</div>
-						<Button disabled={!fbPostCommentsUrl.trim() || fbPostMutation.isPending} onClick={runFacebookPost}>
-							{fbPostMutation.isPending ? t("sys.workbench.facebook.posting") : t("sys.workbench.facebook.post")}
+						<Button
+							disabled={
+								!fbPostCommentsUrl.trim() ||
+								fbPostStreaming ||
+								(fbPostCommentsMode === "manual" && linesToArray(fbCommentsText).length === 0) ||
+								(fbPostCommentsMode === "auto" && fbGenerateCount < 1)
+							}
+							onClick={runFacebookPost}
+						>
+							{fbPostStreaming ? t("sys.workbench.facebook.posting") : t("sys.workbench.facebook.post")}
 						</Button>
-						<ApiLongRunningNotice active={fbPostMutation.isPending} storageKey="workbench-facebook-post" />
-						<ApiResultView value={fbPostMutation.data ?? (fbPostMutation.isError ? fbPostMutation.error : undefined)} />
+						<SearchStreamProgress
+							active={fbPostStreaming}
+							storageKey="workbench-facebook-post-stream"
+							steps={fbPostStreamSteps}
+							title={t("sys.workbench.facebook.postStreamProgressTitle")}
+							subtitle={t("sys.workbench.facebook.postStreamProgressSubtitle")}
+							waitingText={t("sys.workbench.facebook.streamProgressWaiting")}
+							runningLabel={t("sys.workbench.facebook.posting")}
+						/>
+						<ApiResultView
+							value={fbPostData !== undefined ? fbPostData : fbPostError !== null ? fbPostError : undefined}
+						/>
 					</WorkflowShell>
 				</TabsContent>
 			</Tabs>

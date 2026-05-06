@@ -196,6 +196,11 @@
 				"loadingAccounts": "Akkauntlar yuklanmoqda…",
 				"noAccounts": "Javob akkauntlari topilmadi. Ularni Management > System > Accounts bo‘limida qo‘shing."
 			},
+			"generationTone": {
+				"positive": "Ijobiy",
+				"neutral": "Neytral",
+				"negative": "Salbiy"
+			},
 			"search": {
 				"cardTitle": "Instagram eslatmalarini topish",
 				"hint": "Brend, raqib yoki kampaniya eslatmalarini toping va oddiy ton xulosasini oling.",
@@ -227,7 +232,10 @@
 				"cardTitle": "Salbiy izohlarga avtojavob berish",
 				"hint": "Postni tahlil qiling, juda jiddiy salbiy izohlarni oʻtkazib yuboring va yengilroq salbiy izohlarga tanlangan akkauntlar orqali javob bering.",
 				"run": "Avtojavobni boshlash",
-				"running": "Avtojavob bajarilmoqda…"
+				"running": "Avtojavob bajarilmoqda…",
+				"streamProgressTitle": "Avtojavob jarayoni",
+				"streamProgressSubtitle": "Avtojavob xizmatidan jonli yangilanishlar.",
+				"streamProgressWaiting": "Birinchi yangilanish kutilmoqda…"
 			},
 			"campaign": {
 				"cardTitle": "Javob kampaniyasini ishga tushirish",
@@ -250,7 +258,12 @@
 				"postTitle": "Facebook javoblarini joylash",
 				"heavyHint": "Facebook postlari va auditoriya kayfiyatini koʻrib chiqing. Har bir post 1-2 daqiqa olishi mumkin.",
 				"fetchHint": "Facebook post havolasini kiriting va izohlar hamda ton boʻyicha xulosa oling.",
-				"postHint": "Izohlarni kiriting yoki ton va son boʻyicha avtomatik yaratish uchun bo'sh qoldiring.",
+				"postHint": "Izohlarni oʻzingiz yozasizmi yoki tizim ularni yaratasizmi, tanlang va joylang.",
+				"postModeLabel": "Izoh manbai",
+				"postModeManual": "Oʻzim yozaman",
+				"postModeManualHint": "Har bir qatorda bitta izoh. Matn aynan shunday joylanadi.",
+				"postModeAuto": "Avtomatik yaratish",
+				"postModeAutoHint": "Ohang va son takliflar qanday yaratilishini boshqaradi.",
 				"usernameLabel": "Sahifa nomi yoki toʻliq URL",
 				"maxPostsLabel": "Tekshiriladigan postlar",
 				"postUrlLabel": "Facebook post URL",
@@ -263,7 +276,14 @@
 				"fetch": "Postni koʻrib chiqish",
 				"fetching": "Facebook posti koʻrib chiqilmoqda…",
 				"post": "Javoblarni joylash",
-				"posting": "Facebook javoblari joylanmoqda…"
+				"posting": "Facebook javoblari joylanmoqda…",
+				"accountStreamProgressTitle": "Sahifa tahlili jarayoni",
+				"accountStreamProgressSubtitle": "Sahifa tahlili paytida jonli yangilanishlar.",
+				"fetchStreamProgressTitle": "Post koʻrish jarayoni",
+				"fetchStreamProgressSubtitle": "Izohlarni koʻrib chiqishda jonli yangilanishlar.",
+				"postStreamProgressTitle": "Joylash jarayoni",
+				"postStreamProgressSubtitle": "Javoblar joylanishida jonli yangilanishlar.",
+				"streamProgressWaiting": "Birinchi yangilanish kutilmoqda…"
 			}
 		},
 		"analysis": {
