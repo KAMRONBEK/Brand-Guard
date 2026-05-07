@@ -5,6 +5,7 @@ import { commentHealthService, commentTelegramService } from "@/api/services/com
 import { ApiResultView } from "@/components/comment-api/api-result";
 import { WorkflowShell } from "@/components/comment-api/executive-ui";
 import { SearchStreamProgress, type SearchStreamStepRow } from "@/components/comment-api/search-stream-progress";
+import { isTelegramSearchPayload, TelegramSearchResultView } from "@/components/comment-api/telegram-search-result";
 import Icon from "@/components/icon/icon";
 import type { TelegramSearchRequest } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
@@ -99,6 +100,8 @@ export default function TelegramSearchPage() {
 	};
 
 	const displayValue = resultData !== undefined ? resultData : error !== null ? error : undefined;
+	const showTelegramRich =
+		displayValue !== undefined && !(displayValue instanceof Error) && isTelegramSearchPayload(displayValue);
 
 	return (
 		<div className="flex w-full flex-col gap-4">
@@ -202,7 +205,7 @@ export default function TelegramSearchPage() {
 					runningLabel={t("sys.telegramSearch.running")}
 					steps={streamSteps}
 				/>
-				<ApiResultView value={displayValue} />
+				{showTelegramRich ? <TelegramSearchResultView value={displayValue} /> : <ApiResultView value={displayValue} />}
 			</WorkflowShell>
 		</div>
 	);

@@ -87,6 +87,37 @@ export interface TelegramSearchRequest {
 	period_hours?: number;
 }
 
+/** Telegram search stream aggregated response (loose; optional fields from API). */
+export interface TelegramSearchStreamPost {
+	channel_username?: string;
+	channel_title?: string;
+	id?: number;
+	url?: string;
+	text?: string;
+	date?: string;
+	views?: number;
+	sentiment?: string;
+}
+
+export interface TelegramSearchAdviceExample {
+	country?: string;
+	solution?: string;
+	adaptation?: string;
+}
+
+export interface TelegramSearchAdviceIssue {
+	topic?: string;
+	description?: string;
+	suggested_action?: string;
+	worldwide_examples?: TelegramSearchAdviceExample[];
+	evidence_count?: number;
+}
+
+export interface TelegramSearchAdvice {
+	summary?: string;
+	issues?: TelegramSearchAdviceIssue[];
+}
+
 export interface FetchRequest {
 	url: string;
 }

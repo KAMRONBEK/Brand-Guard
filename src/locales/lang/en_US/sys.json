@@ -304,7 +304,35 @@
 			"running": "Searching Telegram…",
 			"streamProgressTitle": "Live progress",
 			"streamProgressSubtitle": "Each line is an update from the Telegram search stream.",
-			"streamProgressWaiting": "Waiting for the first update…"
+			"streamProgressWaiting": "Waiting for the first update…",
+			"result": {
+				"queryTitle": "Search parameters",
+				"keywordsHeading": "Keywords",
+				"channelsHeading": "Channels",
+				"periodLabel": "Period: {{hours}} h",
+				"totalPosts": "Posts matched",
+				"totalPostsHint": "Included in sentiment breakdown",
+				"inThisPeriod": "In this run",
+				"failedChannels": "Channels that failed",
+				"postsTitle": "Posts by sentiment",
+				"sentimentSection": {
+					"negative": "Needs attention",
+					"neutral": "Neutral",
+					"positive": "Positive"
+				},
+				"views": "{{count}} views",
+				"adviceSummaryTitle": "Executive summary",
+				"issuesTitle": "Recommended actions",
+				"issueFallbackTitle": "Issue",
+				"evidenceCount": "Evidence: {{count}} post(s)",
+				"issueDescription": "What we observed",
+				"suggestedAction": "Suggested next step",
+				"examplesToggle": "Worldwide examples ({{count}})",
+				"exampleCountry": "Context",
+				"exampleSolution": "Approach",
+				"exampleAdaptation": "Local adaptation",
+				"timingTitle": "Timing (ms)"
+			}
 		},
 		"analysis": {
 			"title": "Executive reports",

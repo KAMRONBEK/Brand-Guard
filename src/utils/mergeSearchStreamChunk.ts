@@ -10,10 +10,18 @@ export function unwrapPayload(chunk: unknown): unknown {
 	return chunk;
 }
 
+const TELEGRAM_GROUPED_SENTIMENTS = ["negative", "neutral", "positive"] as const;
+
+export function isTelegramGroupedPostsObject(posts: unknown): boolean {
+	if (!isRecord(posts) || Array.isArray(posts)) return false;
+	return TELEGRAM_GROUPED_SENTIMENTS.some((key) => Array.isArray(posts[key]));
+}
+
 function isSearchStreamProgressEvent(record: unknown): boolean {
 	if (!isRecord(record)) return false;
 	if (typeof record.phase !== "string" || typeof record.status !== "string") return false;
 	if (Array.isArray(record.posts)) return false;
+	if (isTelegramGroupedPostsObject(record.posts)) return false;
 	if (Array.isArray(record.messages)) return false;
 	if (Array.isArray(record.results)) return false;
 	if (isRecord(record.overall)) return false;
@@ -43,11 +51,13 @@ export function hasSearchResultPayload(chunk: unknown): boolean {
 	const next = unwrapPayload(chunk);
 	if (!isRecord(next)) return false;
 	if (Array.isArray(next.posts)) return true;
+	if (isTelegramGroupedPostsObject(next.posts)) return true;
 	if (Array.isArray(next.messages)) return true;
 	if (Array.isArray(next.results)) return true;
 	if (isRecord(next.overall)) return true;
 	if (next.comments !== undefined) return true;
 	if (next.stats !== undefined) return true;
+	if (isRecord(next.advice)) return true;
 	return false;
 }
 
@@ -91,6 +101,9 @@ function mergeOverall(
 }
 
 function isSearchStreamTerminalResult(next: Record<string, unknown>): boolean {
+	if (isTelegramGroupedPostsObject(next.posts)) {
+		if (Array.isArray(next.keywords) || Array.isArray(next.channels)) return true;
+	}
 	const hasList = Array.isArray(next.posts) || Array.isArray(next.messages) || Array.isArray(next.results);
 	if (!hasList) return false;
 	if (typeof next.keyword === "string") return true;
@@ -116,7 +129,15 @@ export function mergeSearchStreamChunk(accumulated: unknown, chunk: unknown): un
 	}
 	const acc: Record<string, unknown> = { ...accumulated };
 
-	for (const key of ["keyword", "keywords", "period_hours", "search_type"] as const) {
+	for (const key of [
+		"keyword",
+		"keywords",
+		"channels",
+		"period_hours",
+		"search_type",
+		"language",
+		"max_per_hit",
+	] as const) {
 		if (next[key] !== undefined) acc[key] = next[key];
 	}
 
@@ -129,6 +150,18 @@ export function mergeSearchStreamChunk(accumulated: unknown, chunk: unknown): un
 	if (Array.isArray(next.posts)) {
 		const prevPosts = Array.isArray(acc.posts) ? (acc.posts as Record<string, unknown>[]) : [];
 		acc.posts = mergePostArrays(prevPosts, next.posts as Record<string, unknown>[]);
+	} else if (isTelegramGroupedPostsObject(next.posts)) {
+		const groupedNext = next.posts as Record<string, unknown>;
+		const prevGrouped = isTelegramGroupedPostsObject(acc.posts) ? (acc.posts as Record<string, unknown>) : {};
+		const mergedGrouped: Record<string, unknown> = { ...prevGrouped };
+		for (const key of Object.keys(groupedNext)) {
+			const inc = groupedNext[key];
+			if (Array.isArray(inc)) {
+				const prevArr = Array.isArray(mergedGrouped[key]) ? (mergedGrouped[key] as Record<string, unknown>[]) : [];
+				mergedGrouped[key] = mergePostArrays(prevArr, inc as Record<string, unknown>[]);
+			}
+		}
+		acc.posts = mergedGrouped;
 	}
 
 	if (Array.isArray(next.messages)) {
@@ -141,8 +174,21 @@ export function mergeSearchStreamChunk(accumulated: unknown, chunk: unknown): un
 		acc.results = mergePostArrays(prev, next.results as Record<string, unknown>[]);
 	}
 
-	if (next.stats !== undefined) acc.stats = next.stats;
+	if (next.stats !== undefined) {
+		acc.stats = isRecord(next.stats)
+			? mergeOverall(isRecord(acc.stats) ? acc.stats : undefined, next.stats)
+			: next.stats;
+	}
 	if (next.comments !== undefined) acc.comments = next.comments;
+	if (next.advice !== undefined) acc.advice = next.advice;
+	if (Array.isArray(next.failed_channels)) {
+		const prev = Array.isArray(acc.failed_channels)
+			? (acc.failed_channels as unknown[]).filter((item): item is string => typeof item === "string")
+			: [];
+		const inc = next.failed_channels.filter((item): item is string => typeof item === "string");
+		acc.failed_channels = [...new Set([...prev, ...inc])];
+	}
+	if (next.timing_ms !== undefined) acc.timing_ms = next.timing_ms;
 
 	return acc;
 }
