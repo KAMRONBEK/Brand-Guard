@@ -15,13 +15,19 @@ export function WorkflowShell({
 }: {
 	title: string;
 	description: string;
-	platform?: "Instagram" | "Facebook" | "Brand Guard";
+	platform?: "Instagram" | "Facebook" | "Brand Guard" | "Telegram";
 	intent?: string;
 	children: ReactNode;
 	className?: string;
 }) {
 	const icon =
-		platform === "Facebook" ? "logos:facebook" : platform === "Instagram" ? "skill-icons:instagram" : "mdi:shield-star";
+		platform === "Facebook"
+			? "logos:facebook"
+			: platform === "Instagram"
+				? "skill-icons:instagram"
+				: platform === "Telegram"
+					? "mdi:telegram"
+					: "mdi:shield-star";
 
 	return (
 		<Card className={cn("overflow-hidden border-border/70 bg-card/95 shadow-sm", className)}>

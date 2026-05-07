@@ -138,7 +138,8 @@
 				"index": "Foydalanuvchi",
 				"profile": "Profil"
 			},
-			"workbench": "Ish stoli"
+			"workbench": "Ish stoli",
+			"telegramSearch": "Telegram qidiruvi"
 		},
 		"settings": {
 			"accordion": "Akkordeon menyu",
@@ -285,6 +286,25 @@
 				"postStreamProgressSubtitle": "Javoblar joylanishida jonli yangilanishlar.",
 				"streamProgressWaiting": "Birinchi yangilanish kutilmoqda…"
 			}
+		},
+		"telegramSearch": {
+			"title": "Telegram qidiruvi",
+			"subtitle": "Kanallar va kalit soʻzlar boʻyicha Comment API orqali oqim qidiruvi.",
+			"cardTitle": "Telegramda eslatmalarni topish",
+			"hint": "Kalit soʻzlar va kanallar ikkalasi ham kerak — har bir qatorda bitta qiymat.",
+			"keywordsLabel": "Kalit soʻzlar (har bir qatorda bittadan)",
+			"keywordsPlaceholder": "evos\nbrend nomi",
+			"channelsLabel": "Kanallar (har bir qatorda bittadan)",
+			"channelsPlaceholder": "@channelusername\nhttps://t.me/s/channelname",
+			"periodHoursLabel": "Vaqt oraligʻi (soat)",
+			"maxPerHitLabel": "Har bir urinishda maks. natija",
+			"languageLabel": "Til (ixtiyoriy)",
+			"languagePlaceholder": "masalan en — yubormaslik uchun boʻsh qoldiring",
+			"run": "Telegramda qidirish",
+			"running": "Telegram qidirilmoqda…",
+			"streamProgressTitle": "Jonli progress",
+			"streamProgressSubtitle": "Har bir qator — Telegram qidiruv oqimidan yangilanish.",
+			"streamProgressWaiting": "Birinchi yangilanish kutilmoqda…"
 		},
 		"analysis": {
 			"title": "Rahbarlar uchun hisobotlar",
