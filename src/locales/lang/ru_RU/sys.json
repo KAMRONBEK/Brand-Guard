@@ -138,7 +138,8 @@
 				"index": "Пользователь",
 				"profile": "Профиль"
 			},
-			"workbench": "Рабочий стол"
+			"workbench": "Рабочий стол",
+			"telegramSearch": "Поиск в Telegram"
 		},
 		"settings": {
 			"accordion": "Меню-аккордеон",
@@ -285,6 +286,25 @@
 				"postStreamProgressSubtitle": "Обновления в реальном времени при публикации ответов.",
 				"streamProgressWaiting": "Ожидаем первое обновление…"
 			}
+		},
+		"telegramSearch": {
+			"title": "Поиск в Telegram",
+			"subtitle": "Потоковый поиск по каналам и ключевым словам через Comment API.",
+			"cardTitle": "Найти упоминания в Telegram",
+			"hint": "Нужны и ключевые слова, и каналы — по одному значению на строку.",
+			"keywordsLabel": "Ключевые слова (по одному на строку)",
+			"keywordsPlaceholder": "evos\nназвание бренда",
+			"channelsLabel": "Каналы (по одному на строку)",
+			"channelsPlaceholder": "@channelusername\nhttps://t.me/s/channelname",
+			"periodHoursLabel": "Период (часы)",
+			"maxPerHitLabel": "Макс. результатов на запрос",
+			"languageLabel": "Язык (необязательно)",
+			"languagePlaceholder": "например en — пусто, чтобы не передавать",
+			"run": "Искать в Telegram",
+			"running": "Поиск в Telegram…",
+			"streamProgressTitle": "Живой прогресс",
+			"streamProgressSubtitle": "Каждая строка — обновление потока поиска Telegram.",
+			"streamProgressWaiting": "Ожидаем первое обновление…"
 		},
 		"analysis": {
 			"title": "Отчёты для руководителя",

@@ -78,6 +78,15 @@ export interface SearchRequest {
 	analyze?: boolean;
 }
 
+/** Body for POST /api/telegram/search/stream (comment-api Swagger). */
+export interface TelegramSearchRequest {
+	channels: string[];
+	keywords: string[];
+	language?: string;
+	max_per_hit?: number;
+	period_hours?: number;
+}
+
 export interface FetchRequest {
 	url: string;
 }

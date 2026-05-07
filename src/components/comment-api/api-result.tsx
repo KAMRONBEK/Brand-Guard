@@ -319,7 +319,12 @@ function extractPosts(value: unknown): AnalyzedPost[] {
 	const record = toRecord(value);
 	if (!record) return [];
 	const posts = record.posts;
-	return Array.isArray(posts) ? (posts as AnalyzedPost[]) : [];
+	if (Array.isArray(posts)) return posts as AnalyzedPost[];
+	const messages = record.messages;
+	if (Array.isArray(messages)) return messages as AnalyzedPost[];
+	const results = record.results;
+	if (Array.isArray(results)) return results as AnalyzedPost[];
+	return [];
 }
 
 function formatPostMetric(value: string | number | undefined): string {

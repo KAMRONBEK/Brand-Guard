@@ -138,7 +138,8 @@
 				"index": "User",
 				"profile": "Profile"
 			},
-			"workbench": "Workbench"
+			"workbench": "Workbench",
+			"telegramSearch": "Telegram search"
 		},
 		"settings": {
 			"accordion": "Accordion Menu",
@@ -285,6 +286,25 @@
 				"postStreamProgressSubtitle": "Live steps while responses are published.",
 				"streamProgressWaiting": "Waiting for the first update…"
 			}
+		},
+		"telegramSearch": {
+			"title": "Telegram search",
+			"subtitle": "Stream Telegram search against channels and keywords (comment API).",
+			"cardTitle": "Find Telegram mentions",
+			"hint": "Both keyword lines and channel lines are required. Use one value per line.",
+			"keywordsLabel": "Keywords (one per line)",
+			"keywordsPlaceholder": "evos\nbrand name",
+			"channelsLabel": "Channels (one per line)",
+			"channelsPlaceholder": "@channelusername\nhttps://t.me/s/channelname",
+			"periodHoursLabel": "Time range (hours)",
+			"maxPerHitLabel": "Max results per hit",
+			"languageLabel": "Language (optional)",
+			"languagePlaceholder": "e.g. en — leave empty to omit",
+			"run": "Search Telegram",
+			"running": "Searching Telegram…",
+			"streamProgressTitle": "Live progress",
+			"streamProgressSubtitle": "Each line is an update from the Telegram search stream.",
+			"streamProgressWaiting": "Waiting for the first update…"
 		},
 		"analysis": {
 			"title": "Executive reports",

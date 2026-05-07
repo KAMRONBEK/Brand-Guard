@@ -14,6 +14,8 @@ function isSearchStreamProgressEvent(record: unknown): boolean {
 	if (!isRecord(record)) return false;
 	if (typeof record.phase !== "string" || typeof record.status !== "string") return false;
 	if (Array.isArray(record.posts)) return false;
+	if (Array.isArray(record.messages)) return false;
+	if (Array.isArray(record.results)) return false;
 	if (isRecord(record.overall)) return false;
 	if (typeof record.keyword === "string" || Array.isArray(record.keywords)) return false;
 	return true;
@@ -41,6 +43,8 @@ export function hasSearchResultPayload(chunk: unknown): boolean {
 	const next = unwrapPayload(chunk);
 	if (!isRecord(next)) return false;
 	if (Array.isArray(next.posts)) return true;
+	if (Array.isArray(next.messages)) return true;
+	if (Array.isArray(next.results)) return true;
 	if (isRecord(next.overall)) return true;
 	if (next.comments !== undefined) return true;
 	if (next.stats !== undefined) return true;
@@ -87,7 +91,8 @@ function mergeOverall(
 }
 
 function isSearchStreamTerminalResult(next: Record<string, unknown>): boolean {
-	if (!Array.isArray(next.posts)) return false;
+	const hasList = Array.isArray(next.posts) || Array.isArray(next.messages) || Array.isArray(next.results);
+	if (!hasList) return false;
 	if (typeof next.keyword === "string") return true;
 	if (Array.isArray(next.keywords)) return true;
 	if (typeof next.total === "number") return true;
@@ -124,6 +129,16 @@ export function mergeSearchStreamChunk(accumulated: unknown, chunk: unknown): un
 	if (Array.isArray(next.posts)) {
 		const prevPosts = Array.isArray(acc.posts) ? (acc.posts as Record<string, unknown>[]) : [];
 		acc.posts = mergePostArrays(prevPosts, next.posts as Record<string, unknown>[]);
+	}
+
+	if (Array.isArray(next.messages)) {
+		const prev = Array.isArray(acc.messages) ? (acc.messages as Record<string, unknown>[]) : [];
+		acc.messages = mergePostArrays(prev, next.messages as Record<string, unknown>[]);
+	}
+
+	if (Array.isArray(next.results)) {
+		const prev = Array.isArray(acc.results) ? (acc.results as Record<string, unknown>[]) : [];
+		acc.results = mergePostArrays(prev, next.results as Record<string, unknown>[]);
 	}
 
 	if (next.stats !== undefined) acc.stats = next.stats;

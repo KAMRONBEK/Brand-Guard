@@ -4,6 +4,7 @@ import { Component } from "./utils";
 
 export function getFrontendDashboardRoutes(): RouteObject[] {
 	const frontendDashboardRoutes: RouteObject[] = [
+		{ path: "telegram-search", element: Component("/pages/dashboard/telegram-search") },
 		{ path: "workbench", element: <Navigate to="/workbench/search" replace /> },
 		{ path: "workbench/:endpoint", element: Component("/pages/dashboard/workbench") },
 		{ path: "analysis", element: <Navigate to="/analysis/fetch" replace /> },
