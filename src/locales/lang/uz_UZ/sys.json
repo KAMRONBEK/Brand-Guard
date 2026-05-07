@@ -304,7 +304,35 @@
 			"running": "Telegram qidirilmoqda…",
 			"streamProgressTitle": "Jonli progress",
 			"streamProgressSubtitle": "Har bir qator — Telegram qidiruv oqimidan yangilanish.",
-			"streamProgressWaiting": "Birinchi yangilanish kutilmoqda…"
+			"streamProgressWaiting": "Birinchi yangilanish kutilmoqda…",
+			"result": {
+				"queryTitle": "Qidiruv parametrlari",
+				"keywordsHeading": "Kalit soʻzlar",
+				"channelsHeading": "Kanallar",
+				"periodLabel": "Davr: {{hours}} soat",
+				"totalPosts": "Mos kelgan postlar",
+				"totalPostsHint": "Ton boʻyicha taqsimotda",
+				"inThisPeriod": "Ushbu ishga tushirishda",
+				"failedChannels": "Xatolik bergan kanallar",
+				"postsTitle": "Postlar ton boʻyicha",
+				"sentimentSection": {
+					"negative": "Eʼtibor kerak",
+					"neutral": "Neytral",
+					"positive": "Ijobiy"
+				},
+				"views": "{{count}} marta koʻrilgan",
+				"adviceSummaryTitle": "Rahbar uchun xulosa",
+				"issuesTitle": "Tavsiya etilgan harakatlar",
+				"issueFallbackTitle": "Mavzu",
+				"evidenceCount": "Dalillar: {{count}} post",
+				"issueDescription": "Kuzatilgan holat",
+				"suggestedAction": "Tavsiya etilgan qadam",
+				"examplesToggle": "Jahon amaliyoti ({{count}})",
+				"exampleCountry": "Kontekst",
+				"exampleSolution": "Yondashuv",
+				"exampleAdaptation": "Mahalliy moslash",
+				"timingTitle": "Vaqt (ms)"
+			}
 		},
 		"analysis": {
 			"title": "Rahbarlar uchun hisobotlar",

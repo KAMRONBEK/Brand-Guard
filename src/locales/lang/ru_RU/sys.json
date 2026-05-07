@@ -304,7 +304,35 @@
 			"running": "Поиск в Telegram…",
 			"streamProgressTitle": "Живой прогресс",
 			"streamProgressSubtitle": "Каждая строка — обновление потока поиска Telegram.",
-			"streamProgressWaiting": "Ожидаем первое обновление…"
+			"streamProgressWaiting": "Ожидаем первое обновление…",
+			"result": {
+				"queryTitle": "Параметры поиска",
+				"keywordsHeading": "Ключевые слова",
+				"channelsHeading": "Каналы",
+				"periodLabel": "Период: {{hours}} ч",
+				"totalPosts": "Найдено постов",
+				"totalPostsHint": "Учтено в разбивке по тональности",
+				"inThisPeriod": "В этом запуске",
+				"failedChannels": "Каналы с ошибкой",
+				"postsTitle": "Посты по тональности",
+				"sentimentSection": {
+					"negative": "Требуют внимания",
+					"neutral": "Нейтральные",
+					"positive": "Позитивные"
+				},
+				"views": "{{count}} просмотров",
+				"adviceSummaryTitle": "Резюме для руководства",
+				"issuesTitle": "Рекомендуемые действия",
+				"issueFallbackTitle": "Тема",
+				"evidenceCount": "Доказательная база: {{count}} пост(ов)",
+				"issueDescription": "Что мы увидели",
+				"suggestedAction": "Предлагаемый шаг",
+				"examplesToggle": "Мировые примеры ({{count}})",
+				"exampleCountry": "Контекст",
+				"exampleSolution": "Подход",
+				"exampleAdaptation": "Адаптация",
+				"timingTitle": "Время (мс)"
+			}
 		},
 		"analysis": {
 			"title": "Отчёты для руководителя",

@@ -179,7 +179,7 @@ export function SentimentSummary({ stats }: { stats?: SentimentCounts | Record<s
 	);
 }
 
-function MetricCard({
+export function MetricCard({
 	label,
 	value,
 	helper,
