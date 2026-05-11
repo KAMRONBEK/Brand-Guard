@@ -70,6 +70,11 @@ export function hasFbPostStreamResultPayload(chunk: unknown): boolean {
 	);
 }
 
+/** Instagram `/api/comments/post/stream` — same heuristic as Facebook publisher stream. */
+export function hasIgPostStreamResultPayload(chunk: unknown): boolean {
+	return hasFbPostStreamResultPayload(chunk);
+}
+
 function mergeCommentsByType(
 	previous: Record<string, unknown> | undefined,
 	incoming: Record<string, unknown>,
@@ -100,7 +105,7 @@ function mergeFbPostResultsArray(
 	return base;
 }
 
-export type WorkbenchStreamKind = "autoReply" | "fbAnalyze" | "fbFetch" | "fbPost";
+export type WorkbenchStreamKind = "autoReply" | "fbAnalyze" | "fbFetch" | "fbPost" | "igPost";
 
 export function mergeWorkbenchStreamChunk(kind: WorkbenchStreamKind, accumulated: unknown, chunk: unknown): unknown {
 	const next = unwrapPayload(chunk);
@@ -138,10 +143,11 @@ export function mergeWorkbenchStreamChunk(kind: WorkbenchStreamKind, accumulated
 		return merged;
 	}
 
-	/* fbPost */
-	if (Array.isArray(next.results)) {
-		const prevResults = Array.isArray(accumulated.results) ? (accumulated.results as Record<string, unknown>[]) : [];
-		merged.results = mergeFbPostResultsArray(prevResults, next.results);
+	if (kind === "fbPost" || kind === "igPost") {
+		if (Array.isArray(next.results)) {
+			const prevResults = Array.isArray(accumulated.results) ? (accumulated.results as Record<string, unknown>[]) : [];
+			merged.results = mergeFbPostResultsArray(prevResults, next.results);
+		}
 	}
 	return merged;
 }

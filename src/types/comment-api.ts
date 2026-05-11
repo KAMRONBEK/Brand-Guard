@@ -12,9 +12,14 @@ export interface SentimentCounts {
 
 export interface AnalyzedComment {
 	username?: string;
+	/** Display name when the API sends `author` instead of `username` */
+	author?: string;
 	text?: string;
 	timestamp?: string;
 	sentiment?: SentimentFilter | string;
+	/** Some payloads use these instead of `sentiment` */
+	tone?: string;
+	mood?: string;
 }
 
 export interface CommentsByType {
@@ -194,13 +199,6 @@ export interface FetchResponse {
 	total_comments?: number;
 }
 
-export interface PostCommentsRequest {
-	url: string;
-	comments: string[];
-	num_bots?: number;
-	period_seconds?: number;
-}
-
 export interface AutoReplyRequest {
 	url: string;
 	num_bots?: number;
@@ -211,6 +209,22 @@ export interface AutoReplyRequest {
 export const COMMENT_GENERATION_TONES = ["positive", "neutral", "negative"] as const;
 
 export type CommentGenerationTone = (typeof COMMENT_GENERATION_TONES)[number];
+
+/** Body for POST /api/comments/post and /api/comments/post/stream when using AI generation (Swagger). */
+export interface InstagramAutoGenerateRequest {
+	count?: number;
+	language?: string;
+	tone?: CommentGenerationTone;
+}
+
+export interface PostCommentsRequest {
+	url: string;
+	/** Set for manual (self) mode; omit when using `auto_generate`. */
+	comments?: string[];
+	auto_generate?: InstagramAutoGenerateRequest;
+	num_bots?: number;
+	period_seconds?: number;
+}
 
 export interface CampaignRequest {
 	comments?: string[];

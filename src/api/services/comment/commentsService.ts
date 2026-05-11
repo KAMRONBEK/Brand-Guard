@@ -1,7 +1,7 @@
 import commentApi from "@/api/commentApi";
 import type { AutoReplyRequest, FetchRequest, PostCommentsRequest, SentimentFilter } from "@/types/comment-api";
 
-import { postCommentApiStream, type CommentApiStreamOptions } from "./commentApiStream";
+import { type CommentApiStreamOptions, postCommentApiStream } from "./commentApiStream";
 
 const fetchComments = (body: FetchRequest) => commentApi.postJson<unknown>("/api/comments/fetch", body);
 
@@ -15,9 +15,21 @@ const exportComments = (params: { post_url: string; format?: "json" | "csv"; sen
 
 const postComments = (body: PostCommentsRequest) => commentApi.postJson<unknown>("/api/comments/post", body);
 
+const postCommentsStream = (body: PostCommentsRequest, options: CommentApiStreamOptions) =>
+	postCommentApiStream("/api/comments/post/stream", body, options);
+
 const autoReply = (body: AutoReplyRequest) => commentApi.postJson<unknown>("/api/posts/auto-reply", body);
 
 const autoReplyStream = (body: AutoReplyRequest, options: CommentApiStreamOptions) =>
 	postCommentApiStream("/api/posts/auto-reply/stream", body, options);
 
-export default { fetchComments, listComments, stats, exportComments, postComments, autoReply, autoReplyStream };
+export default {
+	fetchComments,
+	listComments,
+	stats,
+	exportComments,
+	postComments,
+	postCommentsStream,
+	autoReply,
+	autoReplyStream,
+};
