@@ -7,6 +7,7 @@ import { WorkflowShell } from "@/components/comment-api/executive-ui";
 import { SearchStreamProgress, type SearchStreamStepRow } from "@/components/comment-api/search-stream-progress";
 import { isTelegramSearchPayload, TelegramSearchResultView } from "@/components/comment-api/telegram-search-result";
 import Icon from "@/components/icon/icon";
+import { PeriodHoursPresetSelect } from "@/components/period-hours-preset-select";
 import { DEFAULT_COMMENT_API_LANGUAGE_HINT } from "@/constants/api-defaults";
 import type { TelegramSearchRequest } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
@@ -17,6 +18,11 @@ import { Label } from "@/ui/label";
 import { Textarea } from "@/ui/textarea";
 import { Text, Title } from "@/ui/typography";
 import { getSearchStreamProgressStep, mergeSearchStreamChunk } from "@/utils/mergeSearchStreamChunk";
+import {
+	type OptionalFiniteNumber,
+	optionalFiniteNumberDisplay,
+	setOptionalFiniteNumberFromInput,
+} from "@/utils/optional-number-input";
 
 const CACHE_TIME = 1000 * 60 * 30;
 
@@ -47,7 +53,9 @@ export default function TelegramSearchPage() {
 	const [periodHours, setPeriodHours] = useState(24);
 	const [language, setLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
 	const [includeComments, setIncludeComments] = useState(false);
-	const [maxCommentsPerPost, setMaxCommentsPerPost] = useState(TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST);
+	const [maxCommentsPerPost, setMaxCommentsPerPost] = useState<OptionalFiniteNumber>(
+		TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST,
+	);
 	const abortRef = useRef<AbortController | null>(null);
 	const streamStepIdRef = useRef(0);
 	const [streamSteps, setStreamSteps] = useState<SearchStreamStepRow[]>([]);
@@ -63,18 +71,21 @@ export default function TelegramSearchPage() {
 
 	const keywords = linesToList(keywordsText);
 	const channels = linesToList(channelsText);
-	const canRun = keywords.length > 0 && channels.length > 0 && !streaming;
+	const canRun =
+		keywords.length > 0 && channels.length > 0 && !streaming && (!includeComments || maxCommentsPerPost !== "");
 
 	const runSearch = () => {
 		const maxComments =
-			Number.isFinite(maxCommentsPerPost) && maxCommentsPerPost >= 1
-				? Math.floor(maxCommentsPerPost)
-				: TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST;
+			maxCommentsPerPost === ""
+				? TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST
+				: Number.isFinite(maxCommentsPerPost) && maxCommentsPerPost >= 1
+					? Math.floor(maxCommentsPerPost)
+					: TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST;
 
 		const body: TelegramSearchRequest = {
 			keywords,
 			channels,
-			period_hours: Number.isFinite(periodHours) && periodHours > 0 ? periodHours : 24,
+			period_hours: periodHours,
 			max_per_hit: TELEGRAM_SEARCH_MAX_PER_HIT,
 			...(language.trim() !== "" ? { language: language.trim() } : {}),
 			...(includeComments
@@ -197,16 +208,13 @@ export default function TelegramSearchPage() {
 							{t("sys.telegramSearch.includeCommentsHint")}
 						</Text>
 					</div>
-					<div className="space-y-2">
-						<Label htmlFor="tg-ph">{t("sys.telegramSearch.periodHoursLabel")}</Label>
-						<Input
-							id="tg-ph"
-							type="number"
-							min={1}
-							value={periodHours}
-							onChange={(event) => setPeriodHours(Number(event.target.value))}
-						/>
-					</div>
+					<PeriodHoursPresetSelect
+						id="tg-ph"
+						label={t("sys.telegramSearch.periodHoursLabel")}
+						value={periodHours}
+						onHoursChange={setPeriodHours}
+						disabled={streaming}
+					/>
 					{includeComments ? (
 						<div className="space-y-2">
 							<Label htmlFor="tg-max-comments">{t("sys.telegramSearch.maxCommentsPerPostLabel")}</Label>
@@ -214,8 +222,8 @@ export default function TelegramSearchPage() {
 								id="tg-max-comments"
 								type="number"
 								min={1}
-								value={maxCommentsPerPost}
-								onChange={(event) => setMaxCommentsPerPost(Number(event.target.value))}
+								value={optionalFiniteNumberDisplay(maxCommentsPerPost)}
+								onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setMaxCommentsPerPost)}
 								placeholder={t("sys.telegramSearch.maxCommentsPerPostPlaceholder")}
 							/>
 						</div>
