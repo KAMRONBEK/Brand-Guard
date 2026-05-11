@@ -10,11 +10,12 @@ import {
 	commentHealthService,
 	commentSearchService,
 } from "@/api/services/comment";
-import { ApiJsonPreview, ApiLongRunningNotice, ApiResultView } from "@/components/comment-api/api-result";
+import { ApiLongRunningNotice, ApiResultView } from "@/components/comment-api/api-result";
 import { WorkflowShell } from "@/components/comment-api/executive-ui";
 import { SearchStreamProgress, type SearchStreamStepRow } from "@/components/comment-api/search-stream-progress";
 import { SentimentReportSection } from "@/components/comment-api/sentiment-report-section";
 import Icon from "@/components/icon/icon";
+import { PeriodHoursPresetSelect } from "@/components/period-hours-preset-select";
 import { DEFAULT_COMMENT_API_LANGUAGE_HINT } from "@/constants/api-defaults";
 import {
 	type AutoReplyRequest,
@@ -52,13 +53,24 @@ import {
 	hasFbPostStreamResultPayload,
 	mergeWorkbenchStreamChunk,
 } from "@/utils/mergeWorkbenchStreamChunk";
+import {
+	finiteNumberOr,
+	type OptionalFiniteNumber,
+	optionalFiniteNumberDisplay,
+	setOptionalFiniteNumberFromInput,
+} from "@/utils/optional-number-input";
 
 const CACHE_TIME = 1000 * 60 * 30;
 
 /** Sent with Instagram unified search/stream; not exposed in the workbench UI. */
 const INSTAGRAM_UNIFIED_MAX_COMMENTS_PER_POST = 150;
 
+/** Facebook unified search: fixed cap, not exposed in the workbench UI. */
+const FACEBOOK_UNIFIED_MAX_COMMENTS_PER_POST = 150;
+
 type FbPostCommentsMode = "manual" | "auto";
+
+type IgPostCommentsMode = "self" | "ai";
 
 interface AccountOption {
 	commentCount: number;
@@ -207,7 +219,7 @@ export default function Workbench() {
 	});
 
 	const [searchKeywordsText, setSearchKeywordsText] = useState("");
-	const [searchMaxPostsPerAccount, setSearchMaxPostsPerAccount] = useState(5);
+	const [searchMaxPostsPerAccount, setSearchMaxPostsPerAccount] = useState<OptionalFiniteNumber>(5);
 	const [searchType, setSearchType] = useState<InstagramUnifiedSearchType>("account");
 	const [searchLanguage, setSearchLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
 	const searchAbortRef = useRef<AbortController | null>(null);
@@ -232,6 +244,9 @@ export default function Workbench() {
 	const fbUnifiedSearchAbortRef = useRef<AbortController | null>(null);
 	const fbUnifiedSearchStreamStepIdRef = useRef(0);
 
+	const igPostAbortRef = useRef<AbortController | null>(null);
+	const igPostStreamStepIdRef = useRef(0);
+
 	useEffect(() => {
 		return () => {
 			searchAbortRef.current?.abort();
@@ -240,17 +255,20 @@ export default function Workbench() {
 			fbAnalyzeAbortRef.current?.abort();
 			fbFetchAbortRef.current?.abort();
 			fbPostAbortRef.current?.abort();
+			igPostAbortRef.current?.abort();
 		};
 	}, []);
 
 	const runSearch = () => {
 		const keywords = linesToArray(searchKeywordsText);
 		const maxPostsEffective =
-			searchMaxPostsPerAccount === 0
+			searchMaxPostsPerAccount === ""
 				? 10
-				: Number.isFinite(searchMaxPostsPerAccount) && searchMaxPostsPerAccount > 0
-					? Math.floor(searchMaxPostsPerAccount)
-					: 10;
+				: searchMaxPostsPerAccount === 0
+					? 10
+					: Number.isFinite(searchMaxPostsPerAccount) && searchMaxPostsPerAccount > 0
+						? Math.floor(searchMaxPostsPerAccount)
+						: 10;
 		const body: InstagramUnifiedSearchRequest = {
 			type: searchType,
 			keywords,
@@ -308,8 +326,7 @@ export default function Workbench() {
 
 	const [fbUnifiedKeywordsText, setFbUnifiedKeywordsText] = useState("");
 	const [fbUnifiedSearchType, setFbUnifiedSearchType] = useState<FacebookUnifiedSearchType>("account");
-	const [fbUnifiedMaxPosts, setFbUnifiedMaxPosts] = useState(5);
-	const [fbUnifiedMaxCommentsPerPost, setFbUnifiedMaxCommentsPerPost] = useState(100);
+	const [fbUnifiedMaxPosts, setFbUnifiedMaxPosts] = useState<OptionalFiniteNumber>(5);
 	const [fbUnifiedPeriodHours, setFbUnifiedPeriodHours] = useState(168);
 	const [fbUnifiedLanguage, setFbUnifiedLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
 	const [fbUnifiedSearchStreamSteps, setFbUnifiedSearchStreamSteps] = useState<SearchStreamStepRow[]>([]);
@@ -322,8 +339,8 @@ export default function Workbench() {
 		const body: FacebookUnifiedSearchRequest = {
 			keywords,
 			type: fbUnifiedSearchType,
-			max_posts: fbUnifiedMaxPosts,
-			max_comments_per_post: fbUnifiedMaxCommentsPerPost,
+			max_posts: finiteNumberOr(fbUnifiedMaxPosts, 5),
+			max_comments_per_post: FACEBOOK_UNIFIED_MAX_COMMENTS_PER_POST,
 			period_hours: fbUnifiedPeriodHours,
 			...(fbUnifiedLanguage.trim() !== "" ? { language: fbUnifiedLanguage.trim() } : {}),
 		};
@@ -375,31 +392,32 @@ export default function Workbench() {
 	const [postUrl, setPostUrl] = useState("");
 	const [commentsText, setCommentsText] = useState("");
 	const [postSelectedAccounts, setPostSelectedAccounts] = useState<string[]>([]);
-	const [periodSeconds, setPeriodSeconds] = useState(30);
-	const postCommentCount = linesToArray(commentsText).length;
-	const postCommentsMutation = useMutation({
-		mutationFn: (body: PostCommentsRequest) => commentCommentsService.postComments(body),
-		onSuccess: (data, variables) => {
-			queryClient.setQueryData(["comment-api", "comments-post", variables], data);
-		},
-	});
+	const [periodSeconds, setPeriodSeconds] = useState<OptionalFiniteNumber>(30);
+	const [igPostCommentsMode, setIgPostCommentsMode] = useState<IgPostCommentsMode>("self");
+	const [igGenerateTone, setIgGenerateTone] = useState<CommentGenerationTone>("positive");
+	const [igGenerateCount, setIgGenerateCount] = useState<OptionalFiniteNumber>(3);
+	const [igGenerateLanguage, setIgGenerateLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
+	const [postStreamSteps, setPostStreamSteps] = useState<SearchStreamStepRow[]>([]);
+	const [postStreamData, setPostStreamData] = useState<unknown>();
+	const [postStreaming, setPostStreaming] = useState(false);
+	const [postStreamError, setPostStreamError] = useState<Error | null>(null);
 
 	const [autoReplyPostUrl, setAutoReplyPostUrl] = useState("");
 	const [autoReplySelectedAccounts, setAutoReplySelectedAccounts] = useState<string[]>([]);
-	const [autoReplyPeriodSeconds, setAutoReplyPeriodSeconds] = useState(30);
+	const [autoReplyPeriodSeconds, setAutoReplyPeriodSeconds] = useState<OptionalFiniteNumber>(30);
 	const [autoReplyStreamSteps, setAutoReplyStreamSteps] = useState<SearchStreamStepRow[]>([]);
 	const [autoReplyData, setAutoReplyData] = useState<unknown>();
 	const [autoReplyStreaming, setAutoReplyStreaming] = useState(false);
 	const [autoReplyError, setAutoReplyError] = useState<Error | null>(null);
 
 	const [campKeyword, setCampKeyword] = useState("");
-	const [campMaxPosts, setCampMaxPosts] = useState(10);
+	const [campMaxPosts, setCampMaxPosts] = useState<OptionalFiniteNumber>(10);
 	const [campSelectedAccounts, setCampSelectedAccounts] = useState<string[]>([]);
-	const [campPeriodSeconds, setCampPeriodSeconds] = useState(60);
+	const [campPeriodSeconds, setCampPeriodSeconds] = useState<OptionalFiniteNumber>(60);
 	const [campPeriodHours, setCampPeriodHours] = useState(24);
 	const [campSearchType, setCampSearchType] = useState("all");
 	const [campTone, setCampTone] = useState<CommentGenerationTone>("neutral");
-	const [campGenerateCount, setCampGenerateCount] = useState(5);
+	const [campGenerateCount, setCampGenerateCount] = useState<OptionalFiniteNumber>(5);
 	const [campCommentsText, setCampCommentsText] = useState("");
 	const campaignMutation = useMutation({
 		mutationFn: (body: CampaignRequest) => commentCampaignService.run(body),
@@ -409,7 +427,7 @@ export default function Workbench() {
 	});
 
 	const [fbUsername, setFbUsername] = useState("");
-	const [fbMaxPosts, setFbMaxPosts] = useState(1);
+	const [fbMaxPosts, setFbMaxPosts] = useState<OptionalFiniteNumber>(1);
 	const [fbAnalyzeStreamSteps, setFbAnalyzeStreamSteps] = useState<SearchStreamStepRow[]>([]);
 	const [fbAnalyzeData, setFbAnalyzeData] = useState<unknown>();
 	const [fbAnalyzeStreaming, setFbAnalyzeStreaming] = useState(false);
@@ -425,27 +443,73 @@ export default function Workbench() {
 	const [fbPostCommentsMode, setFbPostCommentsMode] = useState<FbPostCommentsMode>("auto");
 	const [fbCommentsText, setFbCommentsText] = useState("");
 	const [fbGenerateTone, setFbGenerateTone] = useState<CommentGenerationTone>("positive");
-	const [fbGenerateCount, setFbGenerateCount] = useState(3);
-	const [fbPostPeriodSeconds, setFbPostPeriodSeconds] = useState(30);
+	const [fbGenerateCount, setFbGenerateCount] = useState<OptionalFiniteNumber>(3);
+	const [fbPostPeriodSeconds, setFbPostPeriodSeconds] = useState<OptionalFiniteNumber>(30);
 	const [fbPostStreamSteps, setFbPostStreamSteps] = useState<SearchStreamStepRow[]>([]);
 	const [fbPostData, setFbPostData] = useState<unknown>();
 	const [fbPostStreaming, setFbPostStreaming] = useState(false);
 	const [fbPostError, setFbPostError] = useState<Error | null>(null);
 
-	const runPostComments = () => {
-		postCommentsMutation.mutate({
+	const buildInstagramPostBody = (): PostCommentsRequest => {
+		const base: PostCommentsRequest = {
 			url: postUrl.trim(),
-			comments: linesToArray(commentsText),
 			num_bots: postSelectedAccounts.length,
-			period_seconds: periodSeconds,
-		});
+			period_seconds: finiteNumberOr(periodSeconds, 30),
+		};
+		if (igPostCommentsMode === "self") {
+			return { ...base, comments: linesToArray(commentsText) };
+		}
+		const auto_generate = {
+			tone: igGenerateTone,
+			count: finiteNumberOr(igGenerateCount, 3),
+		};
+		const lang = igGenerateLanguage.trim();
+		if (lang !== "") {
+			return { ...base, auto_generate: { ...auto_generate, language: lang } };
+		}
+		return { ...base, auto_generate };
+	};
+
+	const runPostComments = () => {
+		const body = buildInstagramPostBody();
+		igPostAbortRef.current?.abort();
+		const ac = new AbortController();
+		igPostAbortRef.current = ac;
+		setPostStreamError(null);
+		setPostStreamData(undefined);
+		igPostStreamStepIdRef.current = 0;
+		setPostStreamSteps([]);
+		setPostStreaming(true);
+
+		void commentCommentsService
+			.postCommentsStream(body, {
+				signal: ac.signal,
+				onEvent: (chunk) => {
+					const progressStep = getSearchStreamProgressStep(chunk);
+					if (progressStep !== null) {
+						const id = ++igPostStreamStepIdRef.current;
+						setPostStreamSteps((prev) => [...prev, { id, ...progressStep }]);
+						return;
+					}
+					setPostStreamData((prev: unknown) => mergeWorkbenchStreamChunk("igPost", prev, chunk));
+				},
+			})
+			.catch((error: unknown) => {
+				setPostStreamError(error instanceof Error ? error : new Error(String(error)));
+			})
+			.finally(() => {
+				if (igPostAbortRef.current === ac) {
+					setPostStreaming(false);
+					setPostStreamSteps([]);
+				}
+			});
 	};
 
 	const runAutoReply = () => {
 		const body: AutoReplyRequest = {
 			url: autoReplyPostUrl.trim(),
 			num_bots: autoReplySelectedAccounts.length,
-			period_seconds: autoReplyPeriodSeconds,
+			period_seconds: finiteNumberOr(autoReplyPeriodSeconds, 30),
 		};
 		autoReplyAbortRef.current?.abort();
 		const ac = new AbortController();
@@ -497,7 +561,7 @@ export default function Workbench() {
 	const runFacebookAnalyze = () => {
 		const body: FacebookAccountAnalyzeRequest = {
 			username: fbUsername.trim(),
-			max_posts: fbMaxPosts,
+			max_posts: finiteNumberOr(fbMaxPosts, 1),
 		};
 		fbAnalyzeAbortRef.current?.abort();
 		const ac = new AbortController();
@@ -598,14 +662,14 @@ export default function Workbench() {
 	const buildFacebookPostBody = (): FacebookPostCommentRequest => {
 		const base = {
 			url: fbPostCommentsUrl.trim(),
-			period_seconds: fbPostPeriodSeconds,
+			period_seconds: finiteNumberOr(fbPostPeriodSeconds, 30),
 		};
 		if (fbPostCommentsMode === "manual") {
 			return { ...base, comments: linesToArray(fbCommentsText) };
 		}
 		return {
 			...base,
-			auto_generate: { tone: fbGenerateTone, count: fbGenerateCount },
+			auto_generate: { tone: fbGenerateTone, count: finiteNumberOr(fbGenerateCount, 3) },
 		};
 	};
 
@@ -661,13 +725,13 @@ export default function Workbench() {
 	const runCampaign = () => {
 		campaignMutation.mutate({
 			keyword: campKeyword.trim(),
-			max_posts: campMaxPosts,
+			max_posts: finiteNumberOr(campMaxPosts, 10),
 			num_bots: campSelectedAccounts.length,
-			period_seconds: campPeriodSeconds,
+			period_seconds: finiteNumberOr(campPeriodSeconds, 60),
 			period_hours: campPeriodHours,
 			search_type: campSearchType,
 			tone: campTone,
-			generate_count: campGenerateCount,
+			generate_count: finiteNumberOr(campGenerateCount, 5),
 			comments: campCommentsText ? linesToArray(campCommentsText) : undefined,
 		});
 	};
@@ -746,8 +810,10 @@ export default function Workbench() {
 								<Input
 									id="mpa"
 									type="number"
-									value={searchMaxPostsPerAccount}
-									onChange={(event) => setSearchMaxPostsPerAccount(Number(event.target.value))}
+									value={optionalFiniteNumberDisplay(searchMaxPostsPerAccount)}
+									onChange={(event) =>
+										setOptionalFiniteNumberFromInput(event.target.value, setSearchMaxPostsPerAccount)
+									}
 								/>
 							</div>
 							<div className="space-y-2">
@@ -790,20 +856,91 @@ export default function Workbench() {
 								placeholder={t("sys.workbench.post.postUrlPlaceholder")}
 							/>
 						</div>
-						<div className="space-y-2">
-							<Label htmlFor="ct">{t("sys.workbench.post.commentsLabel")}</Label>
-							<Textarea id="ct" value={commentsText} onChange={(event) => setCommentsText(event.target.value)} />
+
+						<div className="space-y-3">
+							<Label className="text-sm font-medium">{t("sys.workbench.post.postModeLabel")}</Label>
+							<RadioGroup
+								value={igPostCommentsMode}
+								onValueChange={(value) => setIgPostCommentsMode(value as IgPostCommentsMode)}
+								className="grid gap-3 sm:grid-cols-2"
+							>
+								<div className="flex items-start gap-3 rounded-lg border border-border p-3">
+									<RadioGroupItem value="self" id="ig-mode-self" className="mt-0.5" />
+									<div className="grid gap-1">
+										<Label htmlFor="ig-mode-self" className="cursor-pointer leading-none font-normal">
+											{t("sys.workbench.post.postModeSelf")}
+										</Label>
+										<Text variant="caption" className="text-muted-foreground">
+											{t("sys.workbench.post.postModeSelfHint")}
+										</Text>
+									</div>
+								</div>
+								<div className="flex items-start gap-3 rounded-lg border border-border p-3">
+									<RadioGroupItem value="ai" id="ig-mode-ai" className="mt-0.5" />
+									<div className="grid gap-1">
+										<Label htmlFor="ig-mode-ai" className="cursor-pointer leading-none font-normal">
+											{t("sys.workbench.post.postModeAi")}
+										</Label>
+										<Text variant="caption" className="text-muted-foreground">
+											{t("sys.workbench.post.postModeAiHint")}
+										</Text>
+									</div>
+								</div>
+							</RadioGroup>
 						</div>
-						<div className="grid gap-3 sm:grid-cols-2">
+
+						{igPostCommentsMode === "self" ? (
 							<div className="space-y-2">
-								<Label htmlFor="ps">{t("sys.workbench.post.periodSecondsLabel")}</Label>
-								<Input
-									id="ps"
-									type="number"
-									value={periodSeconds}
-									onChange={(event) => setPeriodSeconds(Number(event.target.value))}
-								/>
+								<Label htmlFor="ct">{t("sys.workbench.post.commentsLabel")}</Label>
+								<Textarea id="ct" value={commentsText} onChange={(event) => setCommentsText(event.target.value)} />
 							</div>
+						) : (
+							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+								<div className="space-y-2">
+									<Label htmlFor="ig-ton">{t("sys.workbench.post.toneLabel")}</Label>
+									<Select value={igGenerateTone} onValueChange={(v) => setIgGenerateTone(v as CommentGenerationTone)}>
+										<SelectTrigger id="ig-ton">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{COMMENT_GENERATION_TONES.map((tone) => (
+												<SelectItem key={tone} value={tone}>
+													{t(`sys.workbench.generationTone.${tone}`)}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="ig-cnt">{t("sys.workbench.post.generateCountLabel")}</Label>
+									<Input
+										id="ig-cnt"
+										type="number"
+										min={1}
+										value={optionalFiniteNumberDisplay(igGenerateCount)}
+										onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setIgGenerateCount)}
+									/>
+								</div>
+								<div className="space-y-2 sm:col-span-2 lg:col-span-1">
+									<Label htmlFor="ig-lang">{t("sys.workbench.post.languageLabel")}</Label>
+									<Input
+										id="ig-lang"
+										value={igGenerateLanguage}
+										onChange={(event) => setIgGenerateLanguage(event.target.value)}
+										placeholder={t("sys.workbench.post.languagePlaceholder")}
+									/>
+								</div>
+							</div>
+						)}
+
+						<div className="space-y-2">
+							<Label htmlFor="ps">{t("sys.workbench.post.periodSecondsLabel")}</Label>
+							<Input
+								id="ps"
+								type="number"
+								value={optionalFiniteNumberDisplay(periodSeconds)}
+								onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setPeriodSeconds)}
+							/>
 						</div>
 						<AccountMultiSelect
 							idPrefix="post-response-account"
@@ -822,18 +959,28 @@ export default function Workbench() {
 						<Button
 							disabled={
 								!postUrl.trim() ||
-								postCommentCount === 0 ||
+								postStreaming ||
 								postSelectedAccounts.length === 0 ||
-								postCommentsMutation.isPending
+								(igPostCommentsMode === "self" && linesToArray(commentsText).length === 0) ||
+								(igPostCommentsMode === "ai" && (igGenerateCount === "" || igGenerateCount < 1)) ||
+								periodSeconds === ""
 							}
 							onClick={runPostComments}
 						>
-							{postCommentsMutation.isPending ? t("sys.workbench.post.posting") : t("sys.workbench.post.run")}
+							{postStreaming ? t("sys.workbench.post.posting") : t("sys.workbench.post.run")}
 						</Button>
-						<ApiLongRunningNotice active={postCommentsMutation.isPending} storageKey="workbench-post" />
-						<ApiJsonPreview
+						<SearchStreamProgress
+							active={postStreaming}
+							storageKey="workbench-instagram-post-stream"
+							steps={postStreamSteps}
+							title={t("sys.workbench.post.postStreamProgressTitle")}
+							subtitle={t("sys.workbench.post.postStreamProgressSubtitle")}
+							waitingText={t("sys.workbench.post.streamProgressWaiting")}
+							runningLabel={t("sys.workbench.post.posting")}
+						/>
+						<ApiResultView
 							value={
-								postCommentsMutation.data ?? (postCommentsMutation.isError ? postCommentsMutation.error : undefined)
+								postStreamData !== undefined ? postStreamData : postStreamError !== null ? postStreamError : undefined
 							}
 						/>
 					</WorkflowShell>
@@ -861,8 +1008,8 @@ export default function Workbench() {
 								<Input
 									id="auto-reply-period"
 									type="number"
-									value={autoReplyPeriodSeconds}
-									onChange={(event) => setAutoReplyPeriodSeconds(Number(event.target.value))}
+									value={optionalFiniteNumberDisplay(autoReplyPeriodSeconds)}
+									onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setAutoReplyPeriodSeconds)}
 								/>
 							</div>
 						</div>
@@ -881,7 +1028,12 @@ export default function Workbench() {
 							refreshLabel={t("sys.workbench.shared.refreshAccounts")}
 						/>
 						<Button
-							disabled={!autoReplyPostUrl.trim() || autoReplySelectedAccounts.length === 0 || autoReplyStreaming}
+							disabled={
+								!autoReplyPostUrl.trim() ||
+								autoReplySelectedAccounts.length === 0 ||
+								autoReplyStreaming ||
+								autoReplyPeriodSeconds === ""
+							}
 							onClick={runAutoReply}
 						>
 							{autoReplyStreaming ? t("sys.workbench.autoReply.running") : t("sys.workbench.autoReply.run")}
@@ -937,8 +1089,8 @@ export default function Workbench() {
 								<Input
 									id="cmax"
 									type="number"
-									value={campMaxPosts}
-									onChange={(event) => setCampMaxPosts(Number(event.target.value))}
+									value={optionalFiniteNumberDisplay(campMaxPosts)}
+									onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setCampMaxPosts)}
 								/>
 							</div>
 							<div className="space-y-2">
@@ -946,26 +1098,24 @@ export default function Workbench() {
 								<Input
 									id="cps"
 									type="number"
-									value={campPeriodSeconds}
-									onChange={(event) => setCampPeriodSeconds(Number(event.target.value))}
+									value={optionalFiniteNumberDisplay(campPeriodSeconds)}
+									onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setCampPeriodSeconds)}
 								/>
 							</div>
-							<div className="space-y-2">
-								<Label htmlFor="cph2">{t("sys.workbench.campaign.periodHoursLabel")}</Label>
-								<Input
-									id="cph2"
-									type="number"
-									value={campPeriodHours}
-									onChange={(event) => setCampPeriodHours(Number(event.target.value))}
-								/>
-							</div>
+							<PeriodHoursPresetSelect
+								id="cph2"
+								label={t("sys.workbench.campaign.periodHoursLabel")}
+								value={campPeriodHours}
+								onHoursChange={setCampPeriodHours}
+								disabled={campaignMutation.isPending}
+							/>
 							<div className="space-y-2">
 								<Label htmlFor="cgc">{t("sys.workbench.campaign.generateCountLabel")}</Label>
 								<Input
 									id="cgc"
 									type="number"
-									value={campGenerateCount}
-									onChange={(event) => setCampGenerateCount(Number(event.target.value))}
+									value={optionalFiniteNumberDisplay(campGenerateCount)}
+									onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setCampGenerateCount)}
 								/>
 							</div>
 						</div>
@@ -1043,28 +1193,17 @@ export default function Workbench() {
 								<Input
 									id="fbus-mp"
 									type="number"
-									value={fbUnifiedMaxPosts}
-									onChange={(event) => setFbUnifiedMaxPosts(Number(event.target.value))}
+									value={optionalFiniteNumberDisplay(fbUnifiedMaxPosts)}
+									onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setFbUnifiedMaxPosts)}
 								/>
 							</div>
-							<div className="space-y-2">
-								<Label htmlFor="fbus-mcp">{t("sys.workbench.facebookSearch.maxCommentsPerPostLabel")}</Label>
-								<Input
-									id="fbus-mcp"
-									type="number"
-									value={fbUnifiedMaxCommentsPerPost}
-									onChange={(event) => setFbUnifiedMaxCommentsPerPost(Number(event.target.value))}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="fbus-ph">{t("sys.workbench.facebookSearch.periodHoursLabel")}</Label>
-								<Input
-									id="fbus-ph"
-									type="number"
-									value={fbUnifiedPeriodHours}
-									onChange={(event) => setFbUnifiedPeriodHours(Number(event.target.value))}
-								/>
-							</div>
+							<PeriodHoursPresetSelect
+								id="fbus-ph"
+								label={t("sys.workbench.facebookSearch.periodHoursLabel")}
+								value={fbUnifiedPeriodHours}
+								onHoursChange={setFbUnifiedPeriodHours}
+								disabled={fbUnifiedSearchStreaming}
+							/>
 							<div className="space-y-2 sm:col-span-2">
 								<Label htmlFor="fbus-lang">{t("sys.workbench.facebookSearch.languageLabel")}</Label>
 								<Input
@@ -1121,8 +1260,8 @@ export default function Workbench() {
 								<Input
 									id="fbmp"
 									type="number"
-									value={fbMaxPosts}
-									onChange={(event) => setFbMaxPosts(Number(event.target.value))}
+									value={optionalFiniteNumberDisplay(fbMaxPosts)}
+									onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setFbMaxPosts)}
 								/>
 							</div>
 						</div>
@@ -1253,8 +1392,8 @@ export default function Workbench() {
 										id="fbcnt"
 										type="number"
 										min={1}
-										value={fbGenerateCount}
-										onChange={(event) => setFbGenerateCount(Number(event.target.value))}
+										value={optionalFiniteNumberDisplay(fbGenerateCount)}
+										onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setFbGenerateCount)}
 									/>
 								</div>
 							</div>
@@ -1265,8 +1404,8 @@ export default function Workbench() {
 							<Input
 								id="fbps"
 								type="number"
-								value={fbPostPeriodSeconds}
-								onChange={(event) => setFbPostPeriodSeconds(Number(event.target.value))}
+								value={optionalFiniteNumberDisplay(fbPostPeriodSeconds)}
+								onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setFbPostPeriodSeconds)}
 							/>
 						</div>
 						<Button
@@ -1274,7 +1413,8 @@ export default function Workbench() {
 								!fbPostCommentsUrl.trim() ||
 								fbPostStreaming ||
 								(fbPostCommentsMode === "manual" && linesToArray(fbCommentsText).length === 0) ||
-								(fbPostCommentsMode === "auto" && fbGenerateCount < 1)
+								(fbPostCommentsMode === "auto" && (fbGenerateCount === "" || fbGenerateCount < 1)) ||
+								fbPostPeriodSeconds === ""
 							}
 							onClick={runFacebookPost}
 						>
