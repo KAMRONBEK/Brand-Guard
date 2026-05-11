@@ -14,6 +14,12 @@ import { Label } from "@/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Tabs, TabsContent } from "@/ui/tabs";
 import { Text, Title } from "@/ui/typography";
+import {
+	finiteNumberOr,
+	type OptionalFiniteNumber,
+	optionalFiniteNumberDisplay,
+	setOptionalFiniteNumberFromInput,
+} from "@/utils/optional-number-input";
 
 const CACHE_TIME = 1000 * 60 * 30;
 
@@ -33,8 +39,8 @@ export default function AnalysisPage() {
 
 	const [listPostUrl, setListPostUrl] = useState("");
 	const [sentiment, setSentiment] = useState<SentimentFilter | "all">("all");
-	const [page, setPage] = useState(1);
-	const [limit, setLimit] = useState(50);
+	const [page, setPage] = useState<OptionalFiniteNumber>(1);
+	const [limit, setLimit] = useState<OptionalFiniteNumber>(50);
 	const [listRequest, setListRequest] = useState<{
 		post_url: string;
 		sentiment?: SentimentFilter;
@@ -53,7 +59,7 @@ export default function AnalysisPage() {
 	});
 
 	const [username, setUsername] = useState("");
-	const [maxPosts, setMaxPosts] = useState(10);
+	const [maxPosts, setMaxPosts] = useState<OptionalFiniteNumber>(10);
 	const [accountRequest, setAccountRequest] = useState<AccountAnalyzeRequest | null>(null);
 	const analyzeQuery = useQuery({
 		queryKey: ["comment-api", "account-analyze", accountRequest],
@@ -139,8 +145,8 @@ export default function AnalysisPage() {
 									id="pg"
 									type="number"
 									min={1}
-									value={page}
-									onChange={(event) => setPage(Number(event.target.value) || 1)}
+									value={optionalFiniteNumberDisplay(page)}
+									onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setPage)}
 								/>
 							</div>
 							<div className="space-y-2">
@@ -149,18 +155,18 @@ export default function AnalysisPage() {
 									id="lm"
 									type="number"
 									min={1}
-									value={limit}
-									onChange={(event) => setLimit(Number(event.target.value) || 50)}
+									value={optionalFiniteNumberDisplay(limit)}
+									onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setLimit)}
 								/>
 							</div>
 						</div>
 						<Button
-							disabled={!listPostUrl.trim() || commentsQuery.isFetching}
+							disabled={!listPostUrl.trim() || commentsQuery.isFetching || page === "" || limit === ""}
 							onClick={() =>
 								setListRequest({
 									post_url: listPostUrl.trim(),
-									page,
-									limit,
+									page: finiteNumberOr(page, 1),
+									limit: finiteNumberOr(limit, 50),
 									...(sentiment === "all" ? {} : { sentiment }),
 								})
 							}
@@ -199,14 +205,19 @@ export default function AnalysisPage() {
 								<Input
 									id="mx"
 									type="number"
-									value={maxPosts}
-									onChange={(event) => setMaxPosts(Number(event.target.value))}
+									value={optionalFiniteNumberDisplay(maxPosts)}
+									onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setMaxPosts)}
 								/>
 							</div>
 						</div>
 						<Button
-							disabled={!username.trim() || analyzeQuery.isFetching}
-							onClick={() => setAccountRequest({ username: username.trim(), max_posts: maxPosts })}
+							disabled={!username.trim() || analyzeQuery.isFetching || maxPosts === ""}
+							onClick={() =>
+								setAccountRequest({
+									username: username.trim(),
+									max_posts: finiteNumberOr(maxPosts, 10),
+								})
+							}
 						>
 							{analyzeQuery.isFetching ? t("sys.analysis.analyzing") : t("sys.analysis.runAccountAnalyze")}
 						</Button>

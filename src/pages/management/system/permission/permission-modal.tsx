@@ -1,14 +1,15 @@
 // import { useUserPermission } from "@/store/userStore";
-import { Button } from "@/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel } from "@/ui/form";
-import { Input } from "@/ui/input";
-import { ToggleGroup, ToggleGroupItem } from "@/ui/toggle-group";
+
 import { AutoComplete, TreeSelect } from "antd";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type { Permission_Old } from "#/entity";
 import { BasicStatus, PermissionType } from "#/enum";
+import { Button } from "@/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel } from "@/ui/form";
+import { Input } from "@/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/ui/toggle-group";
 
 // Constants
 const ENTRY_PATH = "/src/pages";
@@ -243,7 +244,24 @@ export default function PermissionModal({ title, show, formValue, onOk, onCancel
 								<FormItem>
 									<FormLabel>Order</FormLabel>
 									<FormControl>
-										<Input type="number" {...field} />
+										<Input
+											type="number"
+											name={field.name}
+											ref={field.ref}
+											onBlur={field.onBlur}
+											value={field.value ?? ""}
+											onChange={(e) => {
+												const raw = e.target.value;
+												if (raw === "") {
+													field.onChange(undefined);
+													return;
+												}
+												const n = Number(raw);
+												if (Number.isFinite(n)) {
+													field.onChange(n);
+												}
+											}}
+										/>
 									</FormControl>
 								</FormItem>
 							)}

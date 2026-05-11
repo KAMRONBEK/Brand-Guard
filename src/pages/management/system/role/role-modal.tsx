@@ -1,7 +1,8 @@
 import { Tree } from "antd";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-
+import type { Permission_Old, Role_Old } from "#/entity";
+import { BasicStatus } from "#/enum";
 import { PERMISSION_LIST } from "@/fixtures/assets";
 import { Button } from "@/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/ui/dialog";
@@ -11,9 +12,6 @@ import { Label } from "@/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/ui/radio-group";
 import { Textarea } from "@/ui/textarea";
 import { flattenTrees } from "@/utils/tree";
-
-import type { Permission_Old, Role_Old } from "#/entity";
-import { BasicStatus } from "#/enum";
 
 export type RoleModalProps = {
 	formValue: Role_Old;
@@ -93,7 +91,24 @@ export function RoleModal({ title, show, formValue, onOk, onCancel }: RoleModalP
 									<FormLabel className="text-right">Order</FormLabel>
 									<div className="col-span-3">
 										<FormControl>
-											<Input type="number" {...field} />
+											<Input
+												type="number"
+												name={field.name}
+												ref={field.ref}
+												onBlur={field.onBlur}
+												value={field.value ?? ""}
+												onChange={(e) => {
+													const raw = e.target.value;
+													if (raw === "") {
+														field.onChange(undefined);
+														return;
+													}
+													const n = Number(raw);
+													if (Number.isFinite(n)) {
+														field.onChange(n);
+													}
+												}}
+											/>
 										</FormControl>
 									</div>
 								</FormItem>

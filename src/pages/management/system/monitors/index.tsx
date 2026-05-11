@@ -8,6 +8,12 @@ import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader } from "@/ui/card";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
+import {
+	finiteNumberOr,
+	type OptionalFiniteNumber,
+	optionalFiniteNumberDisplay,
+	setOptionalFiniteNumberFromInput,
+} from "@/utils/optional-number-input";
 
 function extractRows(data: unknown): Record<string, unknown>[] {
 	if (Array.isArray(data)) return data as Record<string, unknown>[];
@@ -46,16 +52,16 @@ function alertId(row: Record<string, unknown>): number | null {
 export default function CommentMonitorsPage() {
 	const queryClient = useQueryClient();
 	const [selectedId, setSelectedId] = useState<number | null>(null);
-	const [alertPage, setAlertPage] = useState(1);
-	const [alertLimit, setAlertLimit] = useState(50);
+	const [alertPage, setAlertPage] = useState<OptionalFiniteNumber>(1);
+	const [alertLimit, setAlertLimit] = useState<OptionalFiniteNumber>(50);
 	const [alertSentiment, setAlertSentiment] = useState("");
 	const [unreadOnly, setUnreadOnly] = useState(false);
 
 	const [target, setTarget] = useState("");
 	const [type, setType] = useState("keyword");
 	const [searchType, setSearchType] = useState("all");
-	const [intervalMinutes, setIntervalMinutes] = useState(60);
-	const [maxPosts, setMaxPosts] = useState(20);
+	const [intervalMinutes, setIntervalMinutes] = useState<OptionalFiniteNumber>(60);
+	const [maxPosts, setMaxPosts] = useState<OptionalFiniteNumber>(20);
 
 	const listQuery = useQuery({
 		queryKey: ["comment-api", "monitors"],
@@ -73,11 +79,20 @@ export default function CommentMonitorsPage() {
 	});
 
 	const alertsQuery = useQuery({
-		queryKey: ["comment-api", "monitors", selectedId, "alerts", alertPage, alertLimit, alertSentiment, unreadOnly],
+		queryKey: [
+			"comment-api",
+			"monitors",
+			selectedId,
+			"alerts",
+			finiteNumberOr(alertPage, 1),
+			finiteNumberOr(alertLimit, 50),
+			alertSentiment,
+			unreadOnly,
+		],
 		queryFn: () =>
 			commentMonitorsService.listAlerts(selectedId as number, {
-				page: alertPage,
-				limit: alertLimit,
+				page: finiteNumberOr(alertPage, 1),
+				limit: finiteNumberOr(alertLimit, 50),
 				...(alertSentiment ? { sentiment: alertSentiment as "positive" | "negative" | "neutral" } : {}),
 				...(unreadOnly ? { unread: true } : {}),
 			}),
@@ -93,8 +108,8 @@ export default function CommentMonitorsPage() {
 				target,
 				type,
 				search_type: searchType,
-				interval_minutes: intervalMinutes,
-				max_posts: maxPosts,
+				interval_minutes: finiteNumberOr(intervalMinutes, 60),
+				max_posts: finiteNumberOr(maxPosts, 20),
 			}),
 		onSuccess: () => {
 			void queryClient.invalidateQueries({ queryKey: ["comment-api", "monitors"] });
@@ -218,13 +233,18 @@ export default function CommentMonitorsPage() {
 						<Input
 							id="im"
 							type="number"
-							value={intervalMinutes}
-							onChange={(e) => setIntervalMinutes(Number(e.target.value))}
+							value={optionalFiniteNumberDisplay(intervalMinutes)}
+							onChange={(e) => setOptionalFiniteNumberFromInput(e.target.value, setIntervalMinutes)}
 						/>
 					</div>
 					<div className="space-y-2">
 						<Label htmlFor="mp">max_posts</Label>
-						<Input id="mp" type="number" value={maxPosts} onChange={(e) => setMaxPosts(Number(e.target.value))} />
+						<Input
+							id="mp"
+							type="number"
+							value={optionalFiniteNumberDisplay(maxPosts)}
+							onChange={(e) => setOptionalFiniteNumberFromInput(e.target.value, setMaxPosts)}
+						/>
 					</div>
 					<div className="flex items-end gap-2">
 						<Button disabled={!target.trim() || createMutation.isPending} onClick={() => createMutation.mutate()}>
@@ -289,8 +309,8 @@ export default function CommentMonitorsPage() {
 										id="ap"
 										type="number"
 										min={1}
-										value={alertPage}
-										onChange={(e) => setAlertPage(Number(e.target.value) || 1)}
+										value={optionalFiniteNumberDisplay(alertPage)}
+										onChange={(e) => setOptionalFiniteNumberFromInput(e.target.value, setAlertPage)}
 									/>
 								</div>
 								<div className="space-y-2">
@@ -299,8 +319,8 @@ export default function CommentMonitorsPage() {
 										id="al"
 										type="number"
 										min={1}
-										value={alertLimit}
-										onChange={(e) => setAlertLimit(Number(e.target.value) || 50)}
+										value={optionalFiniteNumberDisplay(alertLimit)}
+										onChange={(e) => setOptionalFiniteNumberFromInput(e.target.value, setAlertLimit)}
 									/>
 								</div>
 								<div className="space-y-2">
