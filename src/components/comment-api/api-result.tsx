@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router";
 import searchAnimation from "@/assets/lotties/search.json";
+import { Icon } from "@/components/icon";
 import type { AnalyzedPost, SentimentCounts } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
@@ -263,6 +264,20 @@ function extractOverallCards(
 	];
 }
 
+function rowLooksLikePublishedCommentRow(row: unknown): boolean {
+	const r = toRecord(row);
+	if (!r) return false;
+	if (typeof r.shortcode === "string") return false;
+	const hasComment = typeof r.comment === "string";
+	if (!hasComment) return false;
+	return typeof r.status === "string" || typeof r.account === "string";
+}
+
+function resultsLookLikePublisherCommentResults(results: unknown[]): boolean {
+	if (results.length === 0) return false;
+	return results.every(rowLooksLikePublishedCommentRow);
+}
+
 function extractPosts(value: unknown): AnalyzedPost[] {
 	const record = toRecord(value);
 	if (!record) return [];
@@ -271,8 +286,213 @@ function extractPosts(value: unknown): AnalyzedPost[] {
 	const messages = record.messages;
 	if (Array.isArray(messages)) return messages as AnalyzedPost[];
 	const results = record.results;
-	if (Array.isArray(results)) return results as AnalyzedPost[];
+	if (Array.isArray(results) && !resultsLookLikePublisherCommentResults(results)) {
+		return results as AnalyzedPost[];
+	}
 	return [];
+}
+
+export interface PublisherCommentResultRow {
+	account?: string;
+	comment?: string;
+	posted_at?: string;
+	status?: string;
+	error?: string;
+}
+
+export interface PublisherCommentAggregatePayload {
+	url?: string;
+	mode?: string;
+	caption?: string;
+	total?: number;
+	success?: number;
+	failed?: number;
+	generated_comments?: string[];
+	results: PublisherCommentResultRow[];
+}
+
+function extractPublisherCommentAggregate(value: unknown): PublisherCommentAggregatePayload | null {
+	const r = toRecord(value);
+	if (!r || typeof r.url !== "string" || !Array.isArray(r.results) || r.results.length === 0) {
+		return null;
+	}
+	if (!resultsLookLikePublisherCommentResults(r.results)) return null;
+
+	const generated = Array.isArray(r.generated_comments)
+		? r.generated_comments.filter((x): x is string => typeof x === "string")
+		: undefined;
+
+	const rows: PublisherCommentResultRow[] = r.results.map((item) => {
+		const row = toRecord(item);
+		return {
+			account: typeof row?.account === "string" ? row.account : undefined,
+			comment: typeof row?.comment === "string" ? row.comment : undefined,
+			posted_at: typeof row?.posted_at === "string" ? row.posted_at : undefined,
+			status: typeof row?.status === "string" ? row.status : undefined,
+			error: typeof row?.error === "string" ? row.error : undefined,
+		};
+	});
+
+	return {
+		url: r.url,
+		mode: typeof r.mode === "string" ? r.mode : undefined,
+		caption: typeof r.caption === "string" ? r.caption : undefined,
+		total: toNumber(r.total),
+		success: toNumber(r.success),
+		failed: toNumber(r.failed),
+		generated_comments: generated,
+		results: rows,
+	};
+}
+
+function publisherPlatformFromUrl(url: string | undefined): SocialPlatformBadge {
+	if (!url) return "instagram";
+	if (/facebook\.com|fb\.watch|fb\.com\b/i.test(url)) return "facebook";
+	return "instagram";
+}
+
+function PublisherCommentResultView({ payload }: { payload: PublisherCommentAggregatePayload }) {
+	const { t } = useTranslation();
+	const platform = publisherPlatformFromUrl(payload.url);
+	const platformLabel = t(`sys.commentApi.socialFeed.platform.${platform}`);
+	const modeLabel =
+		payload.mode != null && payload.mode !== ""
+			? t(`sys.commentApi.publisher.modeValues.${payload.mode}`, { defaultValue: payload.mode })
+			: null;
+
+	return (
+		<div className="flex flex-col gap-4">
+			<Card className="border-primary/15 bg-primary/5">
+				<CardHeader className="pb-2">
+					<CardTitle className="flex flex-wrap items-center gap-2 text-base">
+						<span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-0.5 text-sm font-normal">
+							<Icon
+								icon={
+									platform === "facebook"
+										? "logos:facebook"
+										: platform === "instagram"
+											? "skill-icons:instagram"
+											: "mdi:web"
+								}
+								size={16}
+							/>
+							{platformLabel}
+						</span>
+						{payload.mode != null && payload.mode !== "" && modeLabel != null ? (
+							<Badge variant="secondary">{modeLabel}</Badge>
+						) : null}
+					</CardTitle>
+				</CardHeader>
+				<CardContent className="grid gap-3 sm:grid-cols-3">
+					{payload.total != null ? (
+						<div className="rounded-2xl border bg-background/80 p-4">
+							<div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+								{t("sys.commentApi.publisher.total")}
+							</div>
+							<div className="mt-2 text-2xl font-semibold tabular-nums">{payload.total}</div>
+						</div>
+					) : null}
+					{payload.success != null ? (
+						<div className="rounded-2xl border border-success/25 bg-background/80 p-4">
+							<div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+								{t("sys.commentApi.publisher.succeeded")}
+							</div>
+							<div className="mt-2 text-2xl font-semibold tabular-nums text-success">{payload.success}</div>
+						</div>
+					) : null}
+					{payload.failed != null ? (
+						<div className="rounded-2xl border border-destructive/25 bg-background/80 p-4">
+							<div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+								{t("sys.commentApi.publisher.failed")}
+							</div>
+							<div className="mt-2 text-2xl font-semibold tabular-nums text-destructive">{payload.failed}</div>
+						</div>
+					) : null}
+				</CardContent>
+			</Card>
+
+			{payload.url ? (
+				<Card>
+					<CardHeader className="pb-2">
+						<CardTitle className="flex flex-wrap items-center gap-2 text-base font-semibold">
+							<span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-sm font-normal">
+								<Icon icon={platform === "facebook" ? "logos:facebook" : "skill-icons:instagram"} size={16} />
+								{t("sys.commentApi.publisher.postPreview")}
+							</span>
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-4 pt-0">
+						<div className="space-y-1.5">
+							<div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+								{t("sys.commentApi.publisher.postUrl")}
+							</div>
+							<a
+								href={payload.url}
+								target="_blank"
+								rel="noopener noreferrer"
+								className="inline-flex items-center gap-1.5 break-all text-sm text-primary underline-offset-4 hover:underline"
+							>
+								<Icon icon="mdi:open-in-new" size={16} className="shrink-0" />
+								{payload.url}
+							</a>
+						</div>
+						{payload.caption != null && payload.caption !== "" ? (
+							<div className="space-y-1.5">
+								<div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+									{t("sys.commentApi.publisher.caption")}
+								</div>
+								<CollapsibleText text={payload.caption} clampClassName="line-clamp-6" />
+							</div>
+						) : null}
+					</CardContent>
+				</Card>
+			) : null}
+
+			<div className="space-y-2">
+				<div className="text-sm font-semibold">{t("sys.commentApi.publisher.publishedComments")}</div>
+				<div className="flex flex-col gap-3">
+					{payload.results.map((row, index) => {
+						const posted = formatDisplayDatetime(row.posted_at);
+						const ok = row.status?.toLowerCase() === "ok";
+						const accountLabel = row.account?.trim();
+						return (
+							<Card key={`${row.posted_at ?? ""}-${index}`} className="overflow-hidden">
+								<CardHeader className="space-y-2 pb-2">
+									<div className="flex flex-wrap items-start justify-between gap-2">
+										{accountLabel != null && accountLabel !== "" ? (
+											<div className="min-w-0 font-mono text-sm font-medium text-foreground">@{accountLabel}</div>
+										) : posted != null ? (
+											<div className="text-xs text-muted-foreground">
+												{t("sys.commentApi.publisher.postedAt")}: {posted}
+											</div>
+										) : (
+											<span className="min-w-0 flex-1" />
+										)}
+										{row.status != null ? (
+											<Badge variant={ok ? "success" : "secondary"} className="shrink-0">
+												{row.status}
+											</Badge>
+										) : null}
+									</div>
+									{accountLabel != null && accountLabel !== "" && posted != null ? (
+										<div className="text-xs text-muted-foreground">
+											{t("sys.commentApi.publisher.postedAt")}: {posted}
+										</div>
+									) : null}
+								</CardHeader>
+								<CardContent className="pt-0">
+									<p className="whitespace-pre-wrap text-sm leading-relaxed">{row.comment ?? "—"}</p>
+									{row.error != null && row.error !== "" ? (
+										<p className="mt-2 text-sm text-destructive">{row.error}</p>
+									) : null}
+								</CardContent>
+							</Card>
+						);
+					})}
+				</div>
+			</div>
+		</div>
+	);
 }
 
 function formatDisplayDatetime(raw: string | undefined): string | undefined {
@@ -309,6 +529,7 @@ export function ApiResultView({ value, empty }: { value: unknown; empty?: string
 	}
 
 	const root = toRecord(value);
+	const publisherCommentAggregate = extractPublisherCommentAggregate(value);
 	const posts = extractPosts(value);
 	const stats = extractStats(value);
 	const comments = root?.comments;
@@ -319,7 +540,8 @@ export function ApiResultView({ value, empty }: { value: unknown; empty?: string
 
 	return (
 		<div className="flex flex-col gap-4">
-			{overallCards.length === 0 && streamTotal !== undefined && (
+			{publisherCommentAggregate ? <PublisherCommentResultView payload={publisherCommentAggregate} /> : null}
+			{overallCards.length === 0 && streamTotal !== undefined && !publisherCommentAggregate && (
 				<Card className="border-primary/15 bg-primary/5">
 					<CardContent className="p-4">
 						<div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -400,12 +622,16 @@ export function ApiResultView({ value, empty }: { value: unknown; empty?: string
 					})}
 				</div>
 			)}
-			{posts.length === 0 && comments === undefined && stats === null && overallCards.length === 0 && (
-				<InsightEmptyState
-					title={t("sys.commentApi.resultReceived")}
-					description={t("sys.commentApi.noExecutiveSummary")}
-				/>
-			)}
+			{posts.length === 0 &&
+				comments === undefined &&
+				stats === null &&
+				overallCards.length === 0 &&
+				!publisherCommentAggregate && (
+					<InsightEmptyState
+						title={t("sys.commentApi.resultReceived")}
+						description={t("sys.commentApi.noExecutiveSummary")}
+					/>
+				)}
 			<RawJsonDetails value={value} />
 		</div>
 	);
