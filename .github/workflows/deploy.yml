@@ -132,7 +132,10 @@ jobs:
         run: |
           set -euo pipefail
           scp -P "${SSH_PORT:-22}" -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
             -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4 \
             release.tar.gz \
             "${SSH_USER}@${SSH_HOST}:/tmp/brand-guard-release.tar.gz"
 
@@ -150,6 +153,10 @@ jobs:
           fi
 
           ssh -p "${SSH_PORT:-22}" -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4 \
             "${SSH_USER}@${SSH_HOST}" \
             "DEPLOY_PATH='${DEPLOY_PATH}' bash -s" <<'REMOTE'
           set -euo pipefail
