@@ -11,7 +11,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
 	URL.revokeObjectURL(url);
 }
 
-export function buildCommentExportFilename(postUrl: string, format: "json" | "csv"): string {
+export function buildCommentExportFilename(postUrl: string, format: "json" | "csv" | "xlsx"): string {
 	const safe = postUrl.replace(/[^\w-]+/g, "_").slice(0, 80);
 	return `comments_${safe || "export"}.${format}`;
 }

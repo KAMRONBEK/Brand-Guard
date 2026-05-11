@@ -11,4 +11,8 @@ describe("buildCommentExportFilename", () => {
 		expect(name.endsWith(".csv")).toBe(true);
 		expect(name.startsWith("comments_")).toBe(true);
 	});
+
+	it("appends xlsx extension", () => {
+		expect(buildCommentExportFilename("https://example.com/p/1", "xlsx")).toMatch(/\.xlsx$/);
+	});
 });

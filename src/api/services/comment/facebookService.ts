@@ -1,6 +1,4 @@
 import commentApi from "@/api/commentApi";
-
-import { postCommentApiStream, type CommentApiStreamOptions } from "./commentApiStream";
 import type {
 	AccountAnalyzeResponse,
 	FacebookAccountAnalyzeRequest,
@@ -8,7 +6,10 @@ import type {
 	FacebookFetchResponse,
 	FacebookPostCommentRequest,
 	FacebookPostCommentResponse,
+	FacebookUnifiedSearchRequest,
+	FacebookUnifiedSearchResponse,
 } from "@/types/comment-api";
+import { type CommentApiStreamOptions, postCommentApiStream } from "./commentApiStream";
 
 const analyzeAccount = (body: FacebookAccountAnalyzeRequest) =>
 	commentApi.postJson<AccountAnalyzeResponse>("/api/facebook/account/analyze", body);
@@ -28,6 +29,12 @@ const fetchCommentsStream = (body: FacebookFetchRequest, options: CommentApiStre
 const postCommentsStream = (body: FacebookPostCommentRequest, options: CommentApiStreamOptions) =>
 	postCommentApiStream("/api/facebook/comments/post/stream", body, options);
 
+const search = (body: FacebookUnifiedSearchRequest) =>
+	commentApi.postJson<FacebookUnifiedSearchResponse>("/api/facebook/search", body);
+
+const searchStream = (body: FacebookUnifiedSearchRequest, options: CommentApiStreamOptions) =>
+	postCommentApiStream("/api/facebook/search/stream", body, options);
+
 export default {
 	analyzeAccount,
 	fetchComments,
@@ -35,4 +42,6 @@ export default {
 	analyzeAccountStream,
 	fetchCommentsStream,
 	postCommentsStream,
+	search,
+	searchStream,
 };

@@ -181,6 +181,7 @@
 				"post": "Javoblarni joylash",
 				"autoReply": "Avtojavoblar",
 				"campaign": "Javob kampaniyasi",
+				"facebookSearch": "Facebook qidiruvi",
 				"facebookAccount": "Facebook sharhi",
 				"facebookFetch": "Facebook posti",
 				"facebookPost": "Facebook javoblari"
@@ -204,14 +205,14 @@
 			},
 			"search": {
 				"cardTitle": "Instagram eslatmalarini topish",
-				"hint": "Brend, raqib yoki kampaniya eslatmalarini toping va oddiy ton xulosasini oling.",
-				"keywordLabel": "Brend, raqib yoki kampaniya",
-				"keywordPlaceholder": "brend,raqib",
-				"searchTypeLabel": "Qayerdan izlash",
-				"searchTypePlaceholder": "all | account | hashtag",
-				"maxPostsLabel": "Tekshiriladigan postlar",
-				"periodHoursLabel": "Vaqt oraligʻi (soat)",
-				"analyzeLabel": "Ton tahlilini qoʻshish",
+				"hint": "Akkaunt nomlari, hashtaglarni yoki post URLlari bo‘yicha qidiring. Har bir qator — alohida kalit so‘z; izohlar va tunlov avtomatik tahlil qilinadi.",
+				"keywordsLabel": "Kalit so‘zlar (har bir qator uchun bitta)",
+				"keywordsPlaceholder": "Quyidagi turiga qarab: foydalanuvchi nomlari, hashtaglarni (# ixtiyoriy) yoki to‘liq post URLlari.",
+				"searchTypeLabel": "Qidiruv turi",
+				"searchTypePlaceholder": "account | hashtag | url",
+				"maxPostsPerAccountLabel": "Har akkaunt yoki hashtagda postlar soni",
+				"languageLabel": "Til uchun ko‘rsatma (ixtiyoriy)",
+				"languagePlaceholder": "Standart ru — yubormaslik uchun toʻliq toʻzalang",
 				"run": "Eslatmalarni topish",
 				"running": "Instagram skanerlanmoqda…",
 				"streamProgressTitle": "Jarayon",
@@ -252,6 +253,25 @@
 				"optionalCommentsLabel": "Ixtiyoriy qatʼiy izohlar (har bir qatorda bittadan)",
 				"run": "Kampaniyani ishga tushirish",
 				"running": "Kampaniya bajarilmoqda…"
+			},
+			"facebookSearch": {
+				"cardTitle": "Facebook eslatmalarini qidirish",
+				"hint": "Facebook bo‘yicha yagona qidiruv (Apify): sahifa nomlari yoki post URLlari. Har bir qiymat — alohida qatorda.",
+				"keywordsLabel": "Kiritishlar (har bir qator uchun bitta)",
+				"keywordsPlaceholder": "Account: sahifa nomlari yoki yo‘llar. URL: Facebook postlarining to‘liq havolalari.",
+				"searchTypeLabel": "Kiritish turi",
+				"typeAccount": "Akkaunt",
+				"typeUrl": "Post URL",
+				"maxPostsLabel": "Har akkaunt uchun maks. postlar",
+				"maxCommentsPerPostLabel": "Har post uchun maks. izohlar",
+				"periodHoursLabel": "Vaqt oraligʻi (soat)",
+				"languageLabel": "Til uchun ko‘rsatma (ixtiyoriy)",
+				"languagePlaceholder": "Standart ru — yubormaslik uchun toʻliq toʻzalang",
+				"run": "Facebookda qidirish",
+				"running": "Facebook qidirilmoqda…",
+				"streamProgressTitle": "Jarayon",
+				"streamProgressSubtitle": "Har bir qator Facebook qidiruv oqimidan yangilanish.",
+				"streamProgressWaiting": "Birinchi yangilanish kutilmoqda…"
 			},
 			"facebook": {
 				"accountTitle": "Facebook sahifasini tahlil qilish",
@@ -296,10 +316,13 @@
 			"keywordsPlaceholder": "evos\nbrend nomi",
 			"channelsLabel": "Kanallar (har bir qatorda bittadan)",
 			"channelsPlaceholder": "@channelusername\nhttps://t.me/s/channelname",
+			"includeCommentsLabel": "Izohlarni qoʻshish",
+			"includeCommentsHint": "Topilgan har bir post uchun izohlarni oʻqiydi; salbiy ulush hisoblash uchun.",
 			"periodHoursLabel": "Vaqt oraligʻi (soat)",
-			"maxPerHitLabel": "Har bir urinishda maks. natija",
+			"maxCommentsPerPostLabel": "Post boshiga izohlarning maks. soni",
+			"maxCommentsPerPostPlaceholder": "Standart 25",
 			"languageLabel": "Til (ixtiyoriy)",
-			"languagePlaceholder": "masalan en — yubormaslik uchun boʻsh qoldiring",
+			"languagePlaceholder": "Standart ru — yubormaslik uchun toʻliq toʻzalang",
 			"run": "Telegramda qidirish",
 			"running": "Telegram qidirilmoqda…",
 			"streamProgressTitle": "Jonli progress",
@@ -321,6 +344,12 @@
 					"positive": "Ijobiy"
 				},
 				"views": "{{count}} marta koʻrilgan",
+				"commentsStatsTitle": "Ushbu postdagi izohlar",
+				"commentsTotalLabel": "Jami izohlar",
+				"commentsToggle": "Izohlar ({{count}})",
+				"commentsNoneInPayload": "Izohlar soʻralgan — bu post uchun javobda ular yoʻq.",
+				"onThisPost": "Shu post boʻyicha",
+				"commentStatShareSuffix": "ulush",
 				"adviceSummaryTitle": "Rahbar uchun xulosa",
 				"issuesTitle": "Tavsiya etilgan harakatlar",
 				"issueFallbackTitle": "Mavzu",
@@ -374,6 +403,7 @@
 			"loadingStats": "Statistika yuklanmoqda…",
 			"exportJson": "JSON eksport",
 			"exportCsv": "CSV eksport",
+			"exportXlsx": "XLSX eksport",
 			"tableIndex": "#",
 			"tablePreview": "Oldindan koʻrish",
 			"noRows": "Qatorlar ajratilmadi — xom javob pastda.",
@@ -434,7 +464,37 @@
 				"likes": "Layklar",
 				"commentsOnPost": "Postdagi izohlar"
 			},
-			"totalInResponse": "Javobdagi postlar"
+			"totalInResponse": "Javobdagi postlar",
+			"socialFeed": {
+				"platform": {
+					"instagram": "Instagram",
+					"facebook": "Facebook",
+					"telegram": "Telegram"
+				},
+				"openPost": "Postni ochish",
+				"copyLink": "Havoladan nusxa",
+				"copied": "Nusxa olindi",
+				"showMore": "Ko'proq",
+				"showLess": "Qisqartirish",
+				"postSignals": "Post signallari",
+				"commentsHeading": "Izohlar",
+				"commentsTabAll": "Hammasi",
+				"commentsListLabel": "Izohlar ro'yxati",
+				"unknownUser": "Noma'lum foydalanuvchi",
+				"unlabeled": "Yorliqsiz",
+				"views": "Ko'rishlar",
+				"genericPostHeadline": "Post",
+				"signal": {
+					"topic": "Mavzu",
+					"category": "Kategoriya",
+					"language": "Til",
+					"summary": "Qisqacha"
+				},
+				"mini": {
+					"commentsTotal": "Izohlar",
+					"sectionAria": "Ushbu post uchun izohlar tona tahlili"
+				}
+			}
 		},
 		"i18nPage": {
 			"cardTitle": "Tillar",

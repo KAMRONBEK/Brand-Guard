@@ -19,7 +19,7 @@ export function mapBrowserLanguageToAppLocale(detected: string): LocalEnum {
 	if (SUPPORTED.has(normalized)) {
 		return normalized as LocalEnum;
 	}
-	return LocalEnum.en_US;
+	return LocalEnum.ru_RU;
 }
 
 export const APP_LOCALE_TO_HTML_LANG: Record<LocalEnum, string> = {

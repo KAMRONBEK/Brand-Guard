@@ -1,7 +1,11 @@
 import { useTranslation } from "react-i18next";
+import { Icon } from "@/components/icon";
 import type {
+	AnalyzedComment,
 	TelegramSearchAdviceExample,
 	TelegramSearchAdviceIssue,
+	TelegramSearchCommentHit,
+	TelegramSearchCommentStats,
 	TelegramSearchStreamPost,
 } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
@@ -12,6 +16,10 @@ import { Text, Title } from "@/ui/typography";
 import { cn } from "@/utils";
 import { isTelegramGroupedPostsObject } from "@/utils/mergeSearchStreamChunk";
 import { MetricCard, RawJsonDetails } from "./api-result";
+import { CollapsibleText } from "./social-feed/collapsible-text";
+import { FlatCommentTimeline } from "./social-feed/comment-thread";
+import { MetricsChipsRow } from "./social-feed/metrics-chips-row";
+import { PostCardShell } from "./social-feed/post-card-shell";
 
 const POST_GROUP_ORDER = ["negative", "neutral", "positive"] as const;
 
@@ -44,6 +52,110 @@ function formatWhen(iso: string | undefined): string {
 	return new Date(d).toLocaleString();
 }
 
+/** API may return `failed_channels` as plain strings or `{ channel, reason }` objects. */
+type TelegramFailedChannelRow = { channel: string; reason?: string };
+
+function normalizeFailedChannels(raw: unknown): TelegramFailedChannelRow[] {
+	if (!Array.isArray(raw)) return [];
+	const out: TelegramFailedChannelRow[] = [];
+	for (const item of raw) {
+		if (typeof item === "string") {
+			out.push({ channel: item });
+		} else if (isRecord(item) && typeof item.channel === "string") {
+			out.push({
+				channel: item.channel,
+				reason: typeof item.reason === "string" ? item.reason : undefined,
+			});
+		}
+	}
+	return out;
+}
+
+function readCommentHits(value: unknown): TelegramSearchCommentHit[] {
+	if (!Array.isArray(value)) return [];
+	const hits: TelegramSearchCommentHit[] = [];
+	for (const item of value) {
+		if (!isRecord(item)) continue;
+		const hit: TelegramSearchCommentHit = {
+			username: typeof item.username === "string" ? item.username : undefined,
+			text: typeof item.text === "string" ? item.text : undefined,
+			date: typeof item.date === "string" ? item.date : undefined,
+			sentiment: typeof item.sentiment === "string" ? item.sentiment : undefined,
+		};
+		if (hit.username != null || hit.text != null) hits.push(hit);
+	}
+	return hits;
+}
+
+function readCommentStats(value: unknown): TelegramSearchCommentStats | undefined {
+	if (!isRecord(value)) return undefined;
+	const stats: TelegramSearchCommentStats = {
+		total: toNumber(value.total),
+		positive: toNumber(value.positive),
+		negative: toNumber(value.negative),
+		neutral: toNumber(value.neutral),
+		positive_pct: toNumber(value.positive_pct),
+		negative_pct: toNumber(value.negative_pct),
+		neutral_pct: toNumber(value.neutral_pct),
+	};
+	if (
+		stats.total != null ||
+		stats.positive != null ||
+		stats.negative != null ||
+		stats.neutral != null ||
+		stats.positive_pct != null ||
+		stats.negative_pct != null ||
+		stats.neutral_pct != null
+	) {
+		return stats;
+	}
+	return undefined;
+}
+
+function sentimentCountsFromHits(hits: TelegramSearchCommentHit[]): TelegramSearchCommentStats {
+	let positive = 0;
+	let negative = 0;
+	let neutral = 0;
+	const n = hits.length;
+	for (const h of hits) {
+		const s = typeof h.sentiment === "string" ? h.sentiment.trim().toLowerCase() : "";
+		if (s === "positive") positive++;
+		else if (s === "negative") negative++;
+		else neutral++;
+	}
+	return {
+		total: n,
+		positive,
+		negative,
+		neutral,
+		positive_pct: n > 0 ? Math.round((positive / n) * 1000) / 10 : undefined,
+		negative_pct: n > 0 ? Math.round((negative / n) * 1000) / 10 : undefined,
+		neutral_pct: n > 0 ? Math.round((neutral / n) * 1000) / 10 : undefined,
+	};
+}
+
+function mergeCommentSentimentStats(
+	api: TelegramSearchCommentStats | undefined,
+	derived: TelegramSearchCommentStats | undefined,
+): TelegramSearchCommentStats | undefined {
+	if (!api && !derived) return undefined;
+	const a = api ?? {};
+	const d = derived ?? {};
+	return {
+		total: a.total ?? d.total,
+		positive: a.positive ?? d.positive,
+		negative: a.negative ?? d.negative,
+		neutral: a.neutral ?? d.neutral,
+		positive_pct: a.positive_pct ?? d.positive_pct,
+		negative_pct: a.negative_pct ?? d.negative_pct,
+		neutral_pct: a.neutral_pct ?? d.neutral_pct,
+	};
+}
+
+function mergedStatsHasRenderableCounts(m: TelegramSearchCommentStats): boolean {
+	return (m.total != null && m.total > 0) || (m.positive ?? 0) > 0 || (m.negative ?? 0) > 0 || (m.neutral ?? 0) > 0;
+}
+
 function stableAdviceExampleKey(issueTopic: string | undefined, ex: TelegramSearchAdviceExample): string {
 	const payload = [issueTopic ?? "", ex.country ?? "", ex.solution ?? "", ex.adaptation ?? ""].join("\n");
 	let h = 0;
@@ -61,6 +173,102 @@ function postsForSentiment(
 	return Array.isArray(bucket) ? (bucket as TelegramSearchStreamPost[]) : [];
 }
 
+function hitsToAnalyzedComments(hits: TelegramSearchCommentHit[]): AnalyzedComment[] {
+	return hits.map((h) => ({
+		username: h.username ? `@${h.username.replace(/^@/, "")}` : undefined,
+		text: h.text,
+		timestamp: formatWhen(h.date),
+		sentiment: h.sentiment,
+	}));
+}
+
+function TelegramPostCommentsSection({ post }: { post: TelegramSearchStreamPost }) {
+	const { t } = useTranslation();
+	const raw = post as Record<string, unknown>;
+	const hits = readCommentHits(raw.comments);
+	const commentStats = readCommentStats(raw.comments_stats);
+	const hasCommentsRequested =
+		typeof raw.has_comments === "boolean"
+			? raw.has_comments
+			: typeof post.has_comments === "boolean"
+				? post.has_comments
+				: false;
+	const emptyAfterRequest = hasCommentsRequested === true && hits.length === 0;
+
+	const derivedFromHits = hits.length > 0 ? sentimentCountsFromHits(hits) : undefined;
+	const mergedStats = mergeCommentSentimentStats(commentStats, derivedFromHits);
+	const showMetricRow = mergedStats != null && mergedStatsHasRenderableCounts(mergedStats);
+
+	if (!showMetricRow && hits.length === 0 && !emptyAfterRequest) return null;
+
+	const pctSuffix = (n: number | undefined) =>
+		n != null && Number.isFinite(n) ? ` (${n}% ${t("sys.telegramSearch.result.commentStatShareSuffix")})` : "";
+
+	return (
+		<div className="flex flex-col gap-3 border-border/60 border-t pt-3">
+			{showMetricRow && mergedStats ? (
+				<div>
+					<Text variant="caption" className="mb-2 block font-medium text-muted-foreground">
+						{t("sys.telegramSearch.result.commentsStatsTitle")}
+					</Text>
+					<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+						{mergedStats.total != null && mergedStats.total > 0 && (
+							<MetricCard
+								label={t("sys.telegramSearch.result.commentsTotalLabel")}
+								value={mergedStats.total}
+								helper={t("sys.telegramSearch.result.onThisPost")}
+							/>
+						)}
+						{(mergedStats.positive ?? 0) > 0 && (
+							<MetricCard
+								label={t("sys.commentApi.sentiment.positive")}
+								value={mergedStats.positive ?? 0}
+								helper={`${t("sys.telegramSearch.result.inThisPeriod")}${pctSuffix(mergedStats.positive_pct)}`}
+								tone="success"
+							/>
+						)}
+						{(mergedStats.negative ?? 0) > 0 && (
+							<MetricCard
+								label={t("sys.commentApi.sentiment.negative")}
+								value={mergedStats.negative ?? 0}
+								helper={`${t("sys.telegramSearch.result.inThisPeriod")}${pctSuffix(mergedStats.negative_pct)}`}
+								tone="danger"
+							/>
+						)}
+						{(mergedStats.neutral ?? 0) > 0 && (
+							<MetricCard
+								label={t("sys.commentApi.sentiment.neutral")}
+								value={mergedStats.neutral ?? 0}
+								helper={`${t("sys.telegramSearch.result.inThisPeriod")}${pctSuffix(mergedStats.neutral_pct)}`}
+							/>
+						)}
+					</div>
+				</div>
+			) : null}
+
+			{hits.length > 0 ? (
+				<Collapsible defaultOpen={false}>
+					<CollapsibleTrigger asChild>
+						<Button type="button" variant="outline" size="sm" className="group w-full justify-between gap-2">
+							{t("sys.telegramSearch.result.commentsToggle", { count: hits.length })}
+							<Icon
+								icon="mdi:chevron-down"
+								className="shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180"
+								aria-hidden
+							/>
+						</Button>
+					</CollapsibleTrigger>
+					<CollapsibleContent className="pt-2">
+						<FlatCommentTimeline comments={hitsToAnalyzedComments(hits)} />
+					</CollapsibleContent>
+				</Collapsible>
+			) : emptyAfterRequest ? (
+				<p className="text-sm text-muted-foreground">{t("sys.telegramSearch.result.commentsNoneInPayload")}</p>
+			) : null}
+		</div>
+	);
+}
+
 export function TelegramSearchResultView({ value }: { value: unknown }) {
 	const { t } = useTranslation();
 	if (!isRecord(value)) return null;
@@ -76,9 +284,7 @@ export function TelegramSearchResultView({ value }: { value: unknown }) {
 	const advice = isRecord(value.advice) ? value.advice : undefined;
 	const summary = typeof advice?.summary === "string" ? advice.summary : undefined;
 	const issues = Array.isArray(advice?.issues) ? (advice.issues as TelegramSearchAdviceIssue[]) : [];
-	const failed = Array.isArray(value.failed_channels)
-		? (value.failed_channels as unknown[]).filter((c): c is string => typeof c === "string")
-		: [];
+	const failed = normalizeFailedChannels(value.failed_channels);
 	const timing = isRecord(value.timing_ms) ? value.timing_ms : undefined;
 
 	const hasPostGroups = POST_GROUP_ORDER.some((s) => postsForSentiment(value.posts, s).length > 0);
@@ -165,10 +371,15 @@ export function TelegramSearchResultView({ value }: { value: unknown }) {
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						<ul className="list-inside list-disc space-y-1 text-sm">
-							{failed.map((ch) => (
-								<li key={ch} className="font-mono">
-									{ch}
+						<ul className="space-y-2 text-sm">
+							{failed.map((entry, fi) => (
+								<li key={`${entry.channel}-${fi}-${entry.reason ?? ""}`}>
+									<div className="font-mono">{entry.channel}</div>
+									{entry.reason !== undefined ? (
+										<Text variant="caption" className="block pl-4 text-muted-foreground whitespace-pre-wrap">
+											{entry.reason}
+										</Text>
+									) : null}
 								</li>
 							))}
 						</ul>
@@ -202,18 +413,22 @@ export function TelegramSearchResultView({ value }: { value: unknown }) {
 										</Badge>
 									</CardTitle>
 								</CardHeader>
-								<CardContent className="flex flex-col gap-3 pt-4">
+								<CardContent className="flex flex-col gap-4 pt-4">
 									{posts.map((post, index) => (
-										<Card key={post.url ?? `${sentiment}-${index}`} className="border-border/60 bg-card/80 shadow-none">
-											<CardHeader className="space-y-1 pb-2">
-												<div className="flex flex-wrap items-center gap-2">
-													<span className="font-medium">{post.channel_title ?? "—"}</span>
-													{post.channel_username && (
+										<PostCardShell
+											key={post.url ?? `${sentiment}-${index}`}
+											platform="telegram"
+											headline={post.channel_title ?? "—"}
+											datetimeLine={formatWhen(post.date)}
+											url={post.url}
+											headerBadges={
+												<>
+													{post.channel_username ? (
 														<Badge variant="outline" className="font-mono text-xs">
-															@{post.channel_username}
+															@{post.channel_username.replace(/^@/, "")}
 														</Badge>
-													)}
-													{post.sentiment && (
+													) : null}
+													{post.sentiment ? (
 														<Badge
 															variant={
 																post.sentiment === "negative"
@@ -226,29 +441,18 @@ export function TelegramSearchResultView({ value }: { value: unknown }) {
 														>
 															{post.sentiment}
 														</Badge>
-													)}
-												</div>
-												{post.url && (
-													<a
-														className="text-sm text-primary break-all"
-														href={post.url}
-														target="_blank"
-														rel="noreferrer"
-													>
-														{post.url}
-													</a>
-												)}
-												<div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-													<span>{formatWhen(post.date)}</span>
-													{post.views != null && (
-														<span>{t("sys.telegramSearch.result.views", { count: post.views })}</span>
-													)}
-												</div>
-											</CardHeader>
-											<CardContent className="pt-0">
-												<p className="text-sm leading-relaxed whitespace-pre-wrap">{post.text ?? "—"}</p>
-											</CardContent>
-										</Card>
+													) : null}
+												</>
+											}
+										>
+											{post.views != null ? <MetricsChipsRow views={post.views} /> : null}
+											{post.text?.trim() ? (
+												<CollapsibleText text={post.text} />
+											) : (
+												<p className="text-sm text-muted-foreground">—</p>
+											)}
+											<TelegramPostCommentsSection post={post} />
+										</PostCardShell>
 									))}
 								</CardContent>
 							</Card>
@@ -305,9 +509,13 @@ export function TelegramSearchResultView({ value }: { value: unknown }) {
 								{Array.isArray(issue.worldwide_examples) && issue.worldwide_examples.length > 0 && (
 									<Collapsible defaultOpen={issueIndex === 0}>
 										<CollapsibleTrigger asChild>
-											<Button type="button" variant="outline" size="sm" className="w-full justify-between gap-2">
+											<Button type="button" variant="outline" size="sm" className="group w-full justify-between gap-2">
 												{t("sys.telegramSearch.result.examplesToggle", { count: issue.worldwide_examples.length })}
-												<span className="text-muted-foreground">▾</span>
+												<Icon
+													icon="mdi:chevron-down"
+													className="shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180"
+													aria-hidden
+												/>
 											</Button>
 										</CollapsibleTrigger>
 										<CollapsibleContent className="space-y-3 pt-3">

@@ -181,6 +181,7 @@
 				"post": "Опубликовать ответы",
 				"autoReply": "Автоответы",
 				"campaign": "Кампания ответов",
+				"facebookSearch": "Поиск Facebook",
 				"facebookAccount": "Обзор Facebook",
 				"facebookFetch": "Пост Facebook",
 				"facebookPost": "Ответы Facebook"
@@ -204,14 +205,14 @@
 			},
 			"search": {
 				"cardTitle": "Найти упоминания в Instagram",
-				"hint": "Найдите упоминания бренда, конкурентов или кампаний и получите понятную сводку тональности.",
-				"keywordLabel": "Бренд, конкурент или кампания",
-				"keywordPlaceholder": "бренд,конкурент",
-				"searchTypeLabel": "Где искать",
-				"searchTypePlaceholder": "all | account | hashtag",
-				"maxPostsLabel": "Сколько постов проверить",
-				"periodHoursLabel": "Период (часы)",
-				"analyzeLabel": "Включить анализ тональности",
+				"hint": "Поиск по именам аккаунтов, хэштегам или URL постов. Каждая строка — отдельный запрос; комментарии и тональность анализируются автоматически.",
+				"keywordsLabel": "Ключевые слова (по одному на строку)",
+				"keywordsPlaceholder": "В зависимости от типа ниже: @никнеймы, хэштеги (# необязательна), или полные URL постов.",
+				"searchTypeLabel": "Тип поиска",
+				"searchTypePlaceholder": "account | hashtag | url",
+				"maxPostsPerAccountLabel": "Макс. постов на аккаунт или хэштег",
+				"languageLabel": "Подсказка языка (необязательно)",
+				"languagePlaceholder": "По умолчанию ru — очистите, чтобы не передавать",
 				"run": "Найти упоминания",
 				"running": "Сканируем Instagram…",
 				"streamProgressTitle": "Ход выполнения",
@@ -252,6 +253,25 @@
 				"optionalCommentsLabel": "Необязательные фиксированные комментарии (по одному на строку)",
 				"run": "Запустить кампанию",
 				"running": "Кампания выполняется…"
+			},
+			"facebookSearch": {
+				"cardTitle": "Поиск в Facebook",
+				"hint": "Единый поиск Facebook (Apify) по именам страниц или URL постов. Каждое значение — с новой строки.",
+				"keywordsLabel": "Запросы (по одному на строку)",
+				"keywordsPlaceholder": "Режим account: имена страниц или пути. Режим url: полные ссылки на посты Facebook.",
+				"searchTypeLabel": "Тип входных данных",
+				"typeAccount": "Аккаунт",
+				"typeUrl": "URL поста",
+				"maxPostsLabel": "Макс. постов на аккаунт",
+				"maxCommentsPerPostLabel": "Макс. комментариев на пост",
+				"periodHoursLabel": "Период (часы)",
+				"languageLabel": "Подсказка языка (необязательно)",
+				"languagePlaceholder": "По умолчанию ru — очистите, чтобы не передавать",
+				"run": "Искать в Facebook",
+				"running": "Поиск в Facebook…",
+				"streamProgressTitle": "Ход выполнения",
+				"streamProgressSubtitle": "Каждая строка — обновление потока поиска Facebook.",
+				"streamProgressWaiting": "Ожидаем первое обновление…"
 			},
 			"facebook": {
 				"accountTitle": "Проанализировать страницу Facebook",
@@ -296,10 +316,13 @@
 			"keywordsPlaceholder": "evos\nназвание бренда",
 			"channelsLabel": "Каналы (по одному на строку)",
 			"channelsPlaceholder": "@channelusername\nhttps://t.me/s/channelname",
+			"includeCommentsLabel": "Включить комментарии",
+			"includeCommentsHint": "Подтягивает комментарии к найденным постам для учёта доли негативных.",
 			"periodHoursLabel": "Период (часы)",
-			"maxPerHitLabel": "Макс. результатов на запрос",
+			"maxCommentsPerPostLabel": "Комментариев на пост (максимум)",
+			"maxCommentsPerPostPlaceholder": "По умолчанию 25",
 			"languageLabel": "Язык (необязательно)",
-			"languagePlaceholder": "например en — пусто, чтобы не передавать",
+			"languagePlaceholder": "По умолчанию ru — очистите, чтобы не передавать",
 			"run": "Искать в Telegram",
 			"running": "Поиск в Telegram…",
 			"streamProgressTitle": "Живой прогресс",
@@ -321,6 +344,12 @@
 					"positive": "Позитивные"
 				},
 				"views": "{{count}} просмотров",
+				"commentsStatsTitle": "Комментарии к посту",
+				"commentsTotalLabel": "Всего комментариев",
+				"commentsToggle": "Комментарии ({{count}})",
+				"commentsNoneInPayload": "Комментарии запрашивались — в ответе для этого поста их нет.",
+				"onThisPost": "К этому посту",
+				"commentStatShareSuffix": "доля",
 				"adviceSummaryTitle": "Резюме для руководства",
 				"issuesTitle": "Рекомендуемые действия",
 				"issueFallbackTitle": "Тема",
@@ -374,6 +403,7 @@
 			"loadingStats": "Загрузка статистики…",
 			"exportJson": "Экспорт JSON",
 			"exportCsv": "Экспорт CSV",
+			"exportXlsx": "Экспорт XLSX",
 			"tableIndex": "#",
 			"tablePreview": "Превью",
 			"noRows": "Строк не разобрано — сырой ответ ниже.",
@@ -434,7 +464,37 @@
 				"likes": "Лайки",
 				"commentsOnPost": "Комментарии к посту"
 			},
-			"totalInResponse": "Постов в ответе"
+			"totalInResponse": "Постов в ответе",
+			"socialFeed": {
+				"platform": {
+					"instagram": "Instagram",
+					"facebook": "Facebook",
+					"telegram": "Telegram"
+				},
+				"openPost": "Открыть пост",
+				"copyLink": "Копировать ссылку",
+				"copied": "Скопировано",
+				"showMore": "Показать полностью",
+				"showLess": "Свернуть",
+				"postSignals": "Сигналы поста",
+				"commentsHeading": "Комментарии",
+				"commentsTabAll": "Все",
+				"commentsListLabel": "Список комментариев",
+				"unknownUser": "Неизвестный пользователь",
+				"unlabeled": "Без метки",
+				"views": "Просмотры",
+				"genericPostHeadline": "Пост",
+				"signal": {
+					"topic": "Тема",
+					"category": "Категория",
+					"language": "Язык",
+					"summary": "Кратко"
+				},
+				"mini": {
+					"commentsTotal": "Комментарии",
+					"sectionAria": "Тональность комментариев к посту"
+				}
+			}
 		},
 		"i18nPage": {
 			"cardTitle": "Языки",
