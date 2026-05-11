@@ -124,6 +124,15 @@ jobs:
           ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
           wc -l ~/.ssh/known_hosts
 
+      - name: Clamp TCP MSS to survive cross-region PMTUD blackhole
+        run: |
+          set -euo pipefail
+          # Local-laptop rsync to tdev works fine; GH runner -> tdev stalls mid-stream.
+          # That's the classic MTU blackhole signature on this path. Clamp MSS so the
+          # remote end advertises smaller segments.
+          sudo iptables -t mangle -A OUTPUT -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1360
+          sudo iptables -t mangle -L OUTPUT -n -v | tail -3
+
       - name: Smoke-test SSH connectivity
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
