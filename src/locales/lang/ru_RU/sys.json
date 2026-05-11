@@ -24,6 +24,16 @@
 			"timeoutMessage": "Сеанс истёк, войдите снова!"
 		},
 		"docs": "Документация",
+		"periodHourPreset": {
+			"1": "1 ч",
+			"6": "6 ч",
+			"12": "12 ч",
+			"24": "24 ч",
+			"168": "1 неделя",
+			"720": "1 месяц",
+			"custom": "Другое значение (часы)",
+			"customHoursLabel": "Часы"
+		},
 		"login": {
 			"accountPlaceholder": "Введите имя пользователя",
 			"backSignIn": "Назад ко входу",
@@ -139,7 +149,12 @@
 				"profile": "Профиль"
 			},
 			"workbench": "Рабочий стол",
-			"telegramSearch": "Поиск в Telegram"
+			"telegramSearch": "Поиск в Telegram",
+			"instagramSearchStream": "Поток поиска Instagram",
+			"instagramPostCommentStream": "Поток комментариев к посту Instagram",
+			"reports": "Отчёты",
+			"facebookSearchStream": "Поток поиска Facebook",
+			"facebookPostComment": "Комментарии к посту Facebook"
 		},
 		"settings": {
 			"accordion": "Меню-аккордеон",
@@ -184,7 +199,7 @@
 				"facebookSearch": "Поиск Facebook",
 				"facebookAccount": "Обзор Facebook",
 				"facebookFetch": "Пост Facebook",
-				"facebookPost": "Ответы Facebook"
+				"facebookPost": "Комментарии к постам Facebook"
 			},
 			"intent": {
 				"discovery": "Поиск",
@@ -224,9 +239,21 @@
 				"hint": "Отправьте утверждённые комментарии к посту Instagram через подключённые аккаунты.",
 				"postUrlLabel": "URL поста",
 				"postUrlPlaceholder": "https://www.instagram.com/p/...",
+				"postModeLabel": "Источник комментариев",
+				"postModeSelf": "Свои комментарии",
+				"postModeSelfHint": "По одному на строку; будут отправлены как написано.",
+				"postModeAi": "Комментарии от ИИ",
+				"postModeAiHint": "Тон, количество и язык задают генерацию текстов перед публикацией.",
 				"commentsLabel": "Комментарии (по одному на строку)",
 				"numBotsLabel": "Аккаунты для ответа",
+				"toneLabel": "Рекомендуемый тон",
+				"generateCountLabel": "Сколько сгенерировать",
+				"languageLabel": "Язык текста (по желанию)",
+				"languagePlaceholder": "По умолчанию ru — очистите, чтобы не передавать",
 				"periodSecondsLabel": "Пауза между ответами (секунды)",
+				"postStreamProgressTitle": "Публикация ответов",
+				"postStreamProgressSubtitle": "Шаги в реальном времени при отправке комментариев.",
+				"streamProgressWaiting": "Ожидаем первое обновление…",
 				"run": "Опубликовать ответы",
 				"posting": "Публикуем ответы…"
 			},
@@ -248,7 +275,7 @@
 				"maxPostsLabel": "Сколько постов проверить",
 				"numBotsLabel": "Аккаунты для ответа",
 				"periodSecondsLabel": "Пауза между ответами (секунды)",
-				"periodHoursLabel": "Период (часы)",
+				"periodHoursLabel": "Период",
 				"generateCountLabel": "Предложенные ответы",
 				"optionalCommentsLabel": "Необязательные фиксированные комментарии (по одному на строку)",
 				"run": "Запустить кампанию",
@@ -264,7 +291,7 @@
 				"typeUrl": "URL поста",
 				"maxPostsLabel": "Макс. постов на аккаунт",
 				"maxCommentsPerPostLabel": "Макс. комментариев на пост",
-				"periodHoursLabel": "Период (часы)",
+				"periodHoursLabel": "Период",
 				"languageLabel": "Подсказка языка (необязательно)",
 				"languagePlaceholder": "По умолчанию ru — очистите, чтобы не передавать",
 				"run": "Искать в Facebook",
@@ -318,7 +345,7 @@
 			"channelsPlaceholder": "@channelusername\nhttps://t.me/s/channelname",
 			"includeCommentsLabel": "Включить комментарии",
 			"includeCommentsHint": "Подтягивает комментарии к найденным постам для учёта доли негативных.",
-			"periodHoursLabel": "Период (часы)",
+			"periodHoursLabel": "Период",
 			"maxCommentsPerPostLabel": "Комментариев на пост (максимум)",
 			"maxCommentsPerPostPlaceholder": "По умолчанию 25",
 			"languageLabel": "Язык (необязательно)",
@@ -386,7 +413,7 @@
 			"fetchAnalyze": "Проанализировать пост",
 			"fetching": "Анализируем пост…",
 			"statsCardTitle": "Отчёт тональности",
-			"statsCardHint": "Загрузите последние сохранённые показатели тональности и экспортируйте их для отчёта.",
+			"statsCardHint": "Экспортируйте сохранённые комментарии в JSON или CSV для отчёта.",
 			"statsEmpty": "Введите URL поста и выполните загрузку или откройте статистику.",
 			"commentsCardTitle": "Просмотреть сохранённые комментарии",
 			"commentsCardHint": "Фильтруйте сохранённые комментарии по настроению и находите то, что требует внимания.",
@@ -399,11 +426,8 @@
 			"limitLabel": "limit",
 			"refreshList": "Просмотреть комментарии",
 			"loadingList": "Загрузка комментариев…",
-			"loadStats": "Загрузить отчёт",
-			"loadingStats": "Загрузка статистики…",
 			"exportJson": "Экспорт JSON",
 			"exportCsv": "Экспорт CSV",
-			"exportXlsx": "Экспорт XLSX",
 			"tableIndex": "#",
 			"tablePreview": "Превью",
 			"noRows": "Строк не разобрано — сырой ответ ниже.",
@@ -465,6 +489,19 @@
 				"commentsOnPost": "Комментарии к посту"
 			},
 			"totalInResponse": "Постов в ответе",
+			"publisher": {
+				"total": "Всего",
+				"succeeded": "Успешно",
+				"failed": "Ошибок",
+				"postUrl": "Ссылка на пост",
+				"postPreview": "Исходный пост",
+				"caption": "Текст поста",
+				"publishedComments": "Опубликованные комментарии",
+				"postedAt": "Время публикации",
+				"modeValues": {
+					"auto_generate": "Автогенерация"
+				}
+			},
 			"socialFeed": {
 				"platform": {
 					"instagram": "Instagram",

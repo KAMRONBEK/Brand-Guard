@@ -24,6 +24,16 @@
 			"timeoutMessage": "Login timed out, please log in again!"
 		},
 		"docs": "Document",
+		"periodHourPreset": {
+			"1": "1h",
+			"6": "6h",
+			"12": "12h",
+			"24": "24h",
+			"168": "1 week",
+			"720": "1 month",
+			"custom": "Custom hours",
+			"customHoursLabel": "Hours"
+		},
 		"login": {
 			"accountPlaceholder": "Please input username",
 			"backSignIn": "Back sign in",
@@ -139,7 +149,12 @@
 				"profile": "Profile"
 			},
 			"workbench": "Workbench",
-			"telegramSearch": "Telegram search"
+			"telegramSearch": "Telegram search",
+			"instagramSearchStream": "Instagram search stream",
+			"instagramPostCommentStream": "Instagram post comment stream",
+			"reports": "Reports",
+			"facebookSearchStream": "Facebook search stream",
+			"facebookPostComment": "Facebook post comment"
 		},
 		"settings": {
 			"accordion": "Accordion Menu",
@@ -184,7 +199,7 @@
 				"facebookSearch": "Facebook search",
 				"facebookAccount": "Facebook overview",
 				"facebookFetch": "Facebook post review",
-				"facebookPost": "Facebook responses"
+				"facebookPost": "Facebook post comments"
 			},
 			"intent": {
 				"discovery": "Discovery",
@@ -224,9 +239,21 @@
 				"hint": "Send approved comments to an Instagram post using the connected response accounts.",
 				"postUrlLabel": "Post URL",
 				"postUrlPlaceholder": "https://www.instagram.com/p/...",
+				"postModeLabel": "Comment source",
+				"postModeSelf": "Own comments",
+				"postModeSelfHint": "Enter one comment per line; they will be posted as written.",
+				"postModeAi": "AI-generated comments",
+				"postModeAiHint": "Tone, count, and optional language steer how replies are generated before posting.",
 				"commentsLabel": "Comments (one per line)",
 				"numBotsLabel": "Response accounts",
+				"toneLabel": "Suggested tone",
+				"generateCountLabel": "Comments to generate",
+				"languageLabel": "Language hint (optional)",
+				"languagePlaceholder": "Default ru — clear to omit",
 				"periodSecondsLabel": "Delay between comments (seconds)",
+				"postStreamProgressTitle": "Publish progress",
+				"postStreamProgressSubtitle": "Live steps while responses are posted.",
+				"streamProgressWaiting": "Waiting for the first update…",
 				"run": "Publish responses",
 				"posting": "Publishing responses…"
 			},
@@ -248,7 +275,7 @@
 				"maxPostsLabel": "Posts to scan",
 				"numBotsLabel": "Response accounts",
 				"periodSecondsLabel": "Delay between comments (seconds)",
-				"periodHoursLabel": "Time range (hours)",
+				"periodHoursLabel": "Time range",
 				"generateCountLabel": "Suggested responses",
 				"optionalCommentsLabel": "Optional fixed comments (one per line)",
 				"run": "Launch campaign",
@@ -264,7 +291,7 @@
 				"typeUrl": "Post URL",
 				"maxPostsLabel": "Max posts per account",
 				"maxCommentsPerPostLabel": "Max comments per post",
-				"periodHoursLabel": "Time range (hours)",
+				"periodHoursLabel": "Time range",
 				"languageLabel": "Language hint (optional)",
 				"languagePlaceholder": "Default ru — clear to omit",
 				"run": "Search Facebook",
@@ -318,7 +345,7 @@
 			"channelsPlaceholder": "@channelusername\nhttps://t.me/s/channelname",
 			"includeCommentsLabel": "Include comments",
 			"includeCommentsHint": "Fetches comments per matched post for sentiment around negative comment share.",
-			"periodHoursLabel": "Time range (hours)",
+			"periodHoursLabel": "Time range",
 			"maxCommentsPerPostLabel": "Max comments per post",
 			"maxCommentsPerPostPlaceholder": "Default 25",
 			"languageLabel": "Language (optional)",
@@ -386,7 +413,7 @@
 			"fetchAnalyze": "Analyze post",
 			"fetching": "Analyzing post…",
 			"statsCardTitle": "Sentiment report",
-			"statsCardHint": "Load the latest saved sentiment numbers and export them for reporting.",
+			"statsCardHint": "Export saved comments as JSON or CSV for reporting.",
 			"statsEmpty": "Enter a post URL and fetch or load stats.",
 			"commentsCardTitle": "Review stored comments",
 			"commentsCardHint": "Filter saved comments by sentiment and find what needs attention.",
@@ -399,11 +426,8 @@
 			"limitLabel": "limit",
 			"refreshList": "Review comments",
 			"loadingList": "Loading comments…",
-			"loadStats": "Load report",
-			"loadingStats": "Loading stats…",
 			"exportJson": "Export JSON",
 			"exportCsv": "Export CSV",
-			"exportXlsx": "Export XLSX",
 			"tableIndex": "#",
 			"tablePreview": "Preview",
 			"noRows": "No rows parsed — raw payload below.",
@@ -465,6 +489,19 @@
 				"commentsOnPost": "Comments on post"
 			},
 			"totalInResponse": "Posts in this response",
+			"publisher": {
+				"total": "Total",
+				"succeeded": "Succeeded",
+				"failed": "Failed",
+				"postUrl": "Post link",
+				"postPreview": "Original post",
+				"caption": "Post caption",
+				"publishedComments": "Published comments",
+				"postedAt": "Posted",
+				"modeValues": {
+					"auto_generate": "Auto-generated"
+				}
+			},
 			"socialFeed": {
 				"platform": {
 					"instagram": "Instagram",

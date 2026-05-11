@@ -24,6 +24,16 @@
 			"timeoutMessage": "Sessiya tugadi, qayta kiring!"
 		},
 		"docs": "Hujjat",
+		"periodHourPreset": {
+			"1": "1 soat",
+			"6": "6 soat",
+			"12": "12 soat",
+			"24": "24 soat",
+			"168": "1 hafta",
+			"720": "1 oy",
+			"custom": "Boshqa (soat)",
+			"customHoursLabel": "Soatlar"
+		},
 		"login": {
 			"accountPlaceholder": "Foydalanuvchi nomini kiriting",
 			"backSignIn": "Kirishga qaytish",
@@ -139,7 +149,12 @@
 				"profile": "Profil"
 			},
 			"workbench": "Ish stoli",
-			"telegramSearch": "Telegram qidiruvi"
+			"telegramSearch": "Telegram qidiruvi",
+			"instagramSearchStream": "Instagram qidiruv oqimi",
+			"instagramPostCommentStream": "Instagram post izohlari oqimi",
+			"reports": "Hisobotlar",
+			"facebookSearchStream": "Facebook qidiruv oqimi",
+			"facebookPostComment": "Facebook post izohi"
 		},
 		"settings": {
 			"accordion": "Akkordeon menyu",
@@ -184,7 +199,7 @@
 				"facebookSearch": "Facebook qidiruvi",
 				"facebookAccount": "Facebook sharhi",
 				"facebookFetch": "Facebook posti",
-				"facebookPost": "Facebook javoblari"
+				"facebookPost": "Facebook post izohlari"
 			},
 			"intent": {
 				"discovery": "Qidiruv",
@@ -224,9 +239,21 @@
 				"hint": "Tasdiqlangan izohlarni ulangan javob akkauntlari orqali Instagram postiga yuboring.",
 				"postUrlLabel": "Post URL",
 				"postUrlPlaceholder": "https://www.instagram.com/p/...",
+				"postModeLabel": "Izoh manbai",
+				"postModeSelf": "Oʻz yozuvim",
+				"postModeSelfHint": "Har qatorda bitta izoh; yozilganicha yuboriladi.",
+				"postModeAi": "AI yozgan izohlar",
+				"postModeAiHint": "Ohang, son va til matn ijodini yoʻnaltirishdan oldin yoziladi.",
 				"commentsLabel": "Izohlar (har bir qatorda bittadan)",
 				"numBotsLabel": "Javob akkauntlari",
+				"toneLabel": "Tavsiya etilgan ohang",
+				"generateCountLabel": "Nechta yaratiladi",
+				"languageLabel": "Til (agar kerak bo‘lsa)",
+				"languagePlaceholder": "Standart ru — yubormaslik uchun toʻliq toʻzalang",
 				"periodSecondsLabel": "Javoblar orasidagi kutish (soniya)",
+				"postStreamProgressTitle": "Joylash jarayoni",
+				"postStreamProgressSubtitle": "Izohlarni joylashda jonli qadamlar.",
+				"streamProgressWaiting": "Birinchi yangilanish kutilmoqda…",
 				"run": "Javoblarni joylash",
 				"posting": "Javoblar joylanmoqda…"
 			},
@@ -248,7 +275,7 @@
 				"maxPostsLabel": "Tekshiriladigan postlar",
 				"numBotsLabel": "Javob akkauntlari",
 				"periodSecondsLabel": "Javoblar orasidagi kutish (soniya)",
-				"periodHoursLabel": "Vaqt oraligʻi (soat)",
+				"periodHoursLabel": "Vaqt oraligʻi",
 				"generateCountLabel": "Taklif qilinadigan javoblar",
 				"optionalCommentsLabel": "Ixtiyoriy qatʼiy izohlar (har bir qatorda bittadan)",
 				"run": "Kampaniyani ishga tushirish",
@@ -264,7 +291,7 @@
 				"typeUrl": "Post URL",
 				"maxPostsLabel": "Har akkaunt uchun maks. postlar",
 				"maxCommentsPerPostLabel": "Har post uchun maks. izohlar",
-				"periodHoursLabel": "Vaqt oraligʻi (soat)",
+				"periodHoursLabel": "Vaqt oraligʻi",
 				"languageLabel": "Til uchun ko‘rsatma (ixtiyoriy)",
 				"languagePlaceholder": "Standart ru — yubormaslik uchun toʻliq toʻzalang",
 				"run": "Facebookda qidirish",
@@ -318,7 +345,7 @@
 			"channelsPlaceholder": "@channelusername\nhttps://t.me/s/channelname",
 			"includeCommentsLabel": "Izohlarni qoʻshish",
 			"includeCommentsHint": "Topilgan har bir post uchun izohlarni oʻqiydi; salbiy ulush hisoblash uchun.",
-			"periodHoursLabel": "Vaqt oraligʻi (soat)",
+			"periodHoursLabel": "Vaqt oraligʻi",
 			"maxCommentsPerPostLabel": "Post boshiga izohlarning maks. soni",
 			"maxCommentsPerPostPlaceholder": "Standart 25",
 			"languageLabel": "Til (ixtiyoriy)",
@@ -386,7 +413,7 @@
 			"fetchAnalyze": "Postni tahlil qilish",
 			"fetching": "Post tahlil qilinmoqda…",
 			"statsCardTitle": "Ton hisoboti",
-			"statsCardHint": "Saqlangan soʻnggi ton koʻrsatkichlarini yuklang va hisobot uchun eksport qiling.",
+			"statsCardHint": "Izohlarni JSON yoki CSV sifatida eksport qilish orqali hisobot uchun oling.",
 			"statsEmpty": "Post URL kiriting va yuklang yoki statistikani oching.",
 			"commentsCardTitle": "Saqlangan izohlarni koʻrish",
 			"commentsCardHint": "Saqlangan izohlarni kayfiyat boʻyicha filtrlab, eʼtibor talab qiladiganlarini toping.",
@@ -399,11 +426,8 @@
 			"limitLabel": "limit",
 			"refreshList": "Izohlarni koʻrish",
 			"loadingList": "Izohlar yuklanmoqda…",
-			"loadStats": "Hisobotni yuklash",
-			"loadingStats": "Statistika yuklanmoqda…",
 			"exportJson": "JSON eksport",
 			"exportCsv": "CSV eksport",
-			"exportXlsx": "XLSX eksport",
 			"tableIndex": "#",
 			"tablePreview": "Oldindan koʻrish",
 			"noRows": "Qatorlar ajratilmadi — xom javob pastda.",
@@ -465,6 +489,19 @@
 				"commentsOnPost": "Postdagi izohlar"
 			},
 			"totalInResponse": "Javobdagi postlar",
+			"publisher": {
+				"total": "Jami",
+				"succeeded": "Muvaffaqiyatli",
+				"failed": "Xato",
+				"postUrl": "Post havolasi",
+				"postPreview": "Asl post",
+				"caption": "Post matni",
+				"publishedComments": "Joylangan izohlar",
+				"postedAt": "Joylangan vaqt",
+				"modeValues": {
+					"auto_generate": "Avto yaratilgan"
+				}
+			},
 			"socialFeed": {
 				"platform": {
 					"instagram": "Instagram",
