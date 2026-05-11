@@ -124,6 +124,19 @@ jobs:
           ssh-keyscan -p "${SSH_PORT:-22}" -H "$SSH_HOST" >> ~/.ssh/known_hosts
           wc -l ~/.ssh/known_hosts
 
+      - name: Smoke-test SSH connectivity
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          set -euo pipefail
+          ssh -p "${SSH_PORT:-22}" -i ~/.ssh/id_deploy \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "${SSH_USER}@${SSH_HOST}" \
+            'set -eu; echo "ssh ok: $(whoami)@$(hostname)"; df -h /tmp; command -v rsync >/dev/null && rsync --version | head -1 || echo "rsync NOT installed on server"'
+
       - name: Upload release to server
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -131,11 +144,8 @@ jobs:
           SSH_PORT: ${{ secrets.SSH_PORT }}
         run: |
           set -euo pipefail
-          scp -P "${SSH_PORT:-22}" -i ~/.ssh/id_deploy \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            -o ServerAliveInterval=15 \
-            -o ServerAliveCountMax=4 \
+          rsync -av --timeout=300 --partial --inplace \
+            -e "ssh -p ${SSH_PORT:-22} -i ~/.ssh/id_deploy -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4" \
             release.tar.gz \
             "${SSH_USER}@${SSH_HOST}:/tmp/brand-guard-release.tar.gz"
 
