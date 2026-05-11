@@ -49,7 +49,7 @@ const normalizeAbsoluteCommentApiOrigin = (baseUrl: string): string => {
 export const GLOBAL_CONFIG: GlobalConfig = {
 	appName: "Brand Guard",
 	appVersion: packageJson.version,
-	defaultRoute: import.meta.env.VITE_APP_DEFAULT_ROUTE || "/workbench",
+	defaultRoute: import.meta.env.VITE_APP_DEFAULT_ROUTE || "/workbench/search",
 	publicPath: import.meta.env.VITE_APP_PUBLIC_PATH || "/",
 	apiBaseUrl: import.meta.env.VITE_APP_API_BASE_URL || DEFAULT_API_ORIGIN,
 	commentApiBaseUrl: normalizeAbsoluteCommentApiOrigin(
