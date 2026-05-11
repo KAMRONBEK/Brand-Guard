@@ -7,9 +7,11 @@ import { WorkflowShell } from "@/components/comment-api/executive-ui";
 import { SearchStreamProgress, type SearchStreamStepRow } from "@/components/comment-api/search-stream-progress";
 import { isTelegramSearchPayload, TelegramSearchResultView } from "@/components/comment-api/telegram-search-result";
 import Icon from "@/components/icon/icon";
+import { DEFAULT_COMMENT_API_LANGUAGE_HINT } from "@/constants/api-defaults";
 import type { TelegramSearchRequest } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
+import { Checkbox } from "@/ui/checkbox";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 import { Textarea } from "@/ui/textarea";
@@ -17,6 +19,10 @@ import { Text, Title } from "@/ui/typography";
 import { getSearchStreamProgressStep, mergeSearchStreamChunk } from "@/utils/mergeSearchStreamChunk";
 
 const CACHE_TIME = 1000 * 60 * 30;
+
+const TELEGRAM_SEARCH_MAX_PER_HIT = 150;
+const TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST = 25;
+const TELEGRAM_DEFAULT_MIN_NEGATIVE_COMMENT_RATIO = 0.5;
 
 function linesToList(value: string): string[] {
 	return value
@@ -39,8 +45,9 @@ export default function TelegramSearchPage() {
 	const [keywordsText, setKeywordsText] = useState("");
 	const [channelsText, setChannelsText] = useState("");
 	const [periodHours, setPeriodHours] = useState(24);
-	const [language, setLanguage] = useState("");
-	const [maxPerHit, setMaxPerHit] = useState(20);
+	const [language, setLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
+	const [includeComments, setIncludeComments] = useState(false);
+	const [maxCommentsPerPost, setMaxCommentsPerPost] = useState(TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST);
 	const abortRef = useRef<AbortController | null>(null);
 	const streamStepIdRef = useRef(0);
 	const [streamSteps, setStreamSteps] = useState<SearchStreamStepRow[]>([]);
@@ -59,12 +66,24 @@ export default function TelegramSearchPage() {
 	const canRun = keywords.length > 0 && channels.length > 0 && !streaming;
 
 	const runSearch = () => {
+		const maxComments =
+			Number.isFinite(maxCommentsPerPost) && maxCommentsPerPost >= 1
+				? Math.floor(maxCommentsPerPost)
+				: TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST;
+
 		const body: TelegramSearchRequest = {
 			keywords,
 			channels,
 			period_hours: Number.isFinite(periodHours) && periodHours > 0 ? periodHours : 24,
+			max_per_hit: TELEGRAM_SEARCH_MAX_PER_HIT,
 			...(language.trim() !== "" ? { language: language.trim() } : {}),
-			max_per_hit: Number.isFinite(maxPerHit) && maxPerHit >= 0 ? maxPerHit : 0,
+			...(includeComments
+				? {
+						include_comments: true,
+						max_comments_per_post: maxComments,
+						min_negative_comment_ratio: TELEGRAM_DEFAULT_MIN_NEGATIVE_COMMENT_RATIO,
+					}
+				: {}),
 		};
 		abortRef.current?.abort();
 		const ac = new AbortController();
@@ -163,6 +182,21 @@ export default function TelegramSearchPage() {
 							placeholder={t("sys.telegramSearch.channelsPlaceholder")}
 						/>
 					</div>
+					<div className="space-y-2 lg:col-span-2">
+						<div className="flex items-center gap-2">
+							<Checkbox
+								id="tg-include-comments"
+								checked={includeComments}
+								onCheckedChange={(checked) => setIncludeComments(checked === true)}
+							/>
+							<Label htmlFor="tg-include-comments" className="cursor-pointer font-normal">
+								{t("sys.telegramSearch.includeCommentsLabel")}
+							</Label>
+						</div>
+						<Text variant="caption" className="text-muted-foreground">
+							{t("sys.telegramSearch.includeCommentsHint")}
+						</Text>
+					</div>
 					<div className="space-y-2">
 						<Label htmlFor="tg-ph">{t("sys.telegramSearch.periodHoursLabel")}</Label>
 						<Input
@@ -173,16 +207,19 @@ export default function TelegramSearchPage() {
 							onChange={(event) => setPeriodHours(Number(event.target.value))}
 						/>
 					</div>
-					<div className="space-y-2">
-						<Label htmlFor="tg-max">{t("sys.telegramSearch.maxPerHitLabel")}</Label>
-						<Input
-							id="tg-max"
-							type="number"
-							min={0}
-							value={maxPerHit}
-							onChange={(event) => setMaxPerHit(Number(event.target.value))}
-						/>
-					</div>
+					{includeComments ? (
+						<div className="space-y-2">
+							<Label htmlFor="tg-max-comments">{t("sys.telegramSearch.maxCommentsPerPostLabel")}</Label>
+							<Input
+								id="tg-max-comments"
+								type="number"
+								min={1}
+								value={maxCommentsPerPost}
+								onChange={(event) => setMaxCommentsPerPost(Number(event.target.value))}
+								placeholder={t("sys.telegramSearch.maxCommentsPerPostPlaceholder")}
+							/>
+						</div>
+					) : null}
 					<div className="space-y-2 lg:col-span-2">
 						<Label htmlFor="tg-lang">{t("sys.telegramSearch.languageLabel")}</Label>
 						<Input

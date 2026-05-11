@@ -78,13 +78,74 @@ export interface SearchRequest {
 	analyze?: boolean;
 }
 
-/** Body for POST /api/telegram/search/stream (comment-api Swagger). */
+/** Body for POST /api/instagram/search and /api/instagram/search/stream (comment-api Swagger). */
+export type InstagramUnifiedSearchType = "account" | "url" | "hashtag";
+
+export interface InstagramUnifiedSearchRequest {
+	type: InstagramUnifiedSearchType;
+	keywords: string[];
+	language?: string;
+	max_posts_per_account?: number;
+	max_comments_per_post?: number;
+}
+
+/** Body for POST /api/facebook/search and /api/facebook/search/stream (comment-api Swagger). */
+export type FacebookUnifiedSearchType = "account" | "url";
+
+export interface FacebookUnifiedSearchRequest {
+	keywords?: string[];
+	language?: string;
+	max_comments_per_post?: number;
+	max_posts?: number;
+	period_hours?: number;
+	type?: FacebookUnifiedSearchType;
+}
+
+export interface FacebookFailedInput {
+	input?: string;
+	reason?: string;
+}
+
+/** Unified Apify-backed Facebook search response (optional fields per Swagger). */
+export interface FacebookUnifiedSearchResponse {
+	failed_inputs?: FacebookFailedInput[];
+	keywords?: string[];
+	period_hours?: number;
+	posts?: unknown[];
+	stats?: SentimentCounts;
+	timing_ms?: Record<string, number>;
+	type?: FacebookUnifiedSearchType;
+}
+
+/** Body for POST /api/telegram/search and /api/telegram/search/stream (comment-api Swagger). */
 export interface TelegramSearchRequest {
 	channels: string[];
 	keywords: string[];
+	include_comments?: boolean;
 	language?: string;
+	max_comments_per_post?: number;
 	max_per_hit?: number;
+	min_negative_comment_ratio?: number;
 	period_hours?: number;
+}
+
+/** Telegram comment hit inside a post payload (Swagger `internal_handler_telegram.CommentHit`). */
+export interface TelegramSearchCommentHit {
+	username?: string;
+	text?: string;
+	date?: string;
+	sentiment?: string;
+}
+
+/** Aggregated sentiment for comments under one post (`internal_handler_telegram.CommentStats`). */
+export interface TelegramSearchCommentStats {
+	total?: number;
+	positive?: number;
+	negative?: number;
+	neutral?: number;
+	positive_pct?: number;
+	negative_pct?: number;
+	neutral_pct?: number;
 }
 
 /** Telegram search stream aggregated response (loose; optional fields from API). */
@@ -97,6 +158,9 @@ export interface TelegramSearchStreamPost {
 	date?: string;
 	views?: number;
 	sentiment?: string;
+	has_comments?: boolean;
+	comments?: TelegramSearchCommentHit[];
+	comments_stats?: TelegramSearchCommentStats;
 }
 
 export interface TelegramSearchAdviceExample {

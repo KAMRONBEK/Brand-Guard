@@ -100,6 +100,12 @@ function mergeOverall(
 	return { ...previous, ...incoming };
 }
 
+function failedInputDedupeKey(row: Record<string, unknown>): string {
+	const input = row.input;
+	const reason = row.reason;
+	return `${typeof input === "string" ? input : ""}\u0000${typeof reason === "string" ? reason : ""}`;
+}
+
 function isSearchStreamTerminalResult(next: Record<string, unknown>): boolean {
 	if (isTelegramGroupedPostsObject(next.posts)) {
 		if (Array.isArray(next.keywords) || Array.isArray(next.channels)) return true;
@@ -137,6 +143,7 @@ export function mergeSearchStreamChunk(accumulated: unknown, chunk: unknown): un
 		"search_type",
 		"language",
 		"max_per_hit",
+		"type",
 	] as const) {
 		if (next[key] !== undefined) acc[key] = next[key];
 	}
@@ -187,6 +194,20 @@ export function mergeSearchStreamChunk(accumulated: unknown, chunk: unknown): un
 			: [];
 		const inc = next.failed_channels.filter((item): item is string => typeof item === "string");
 		acc.failed_channels = [...new Set([...prev, ...inc])];
+	}
+	if (Array.isArray(next.failed_inputs)) {
+		const byKey = new Map<string, Record<string, unknown>>();
+		const pushRows = (rows: unknown[]) => {
+			for (const item of rows) {
+				if (!isRecord(item)) continue;
+				const k = failedInputDedupeKey(item);
+				const existing = byKey.get(k);
+				byKey.set(k, existing ? { ...existing, ...item } : { ...item });
+			}
+		};
+		if (Array.isArray(acc.failed_inputs)) pushRows(acc.failed_inputs as unknown[]);
+		pushRows(next.failed_inputs);
+		acc.failed_inputs = [...byKey.values()];
 	}
 	if (next.timing_ms !== undefined) acc.timing_ms = next.timing_ms;
 

@@ -12,7 +12,7 @@ import uz_UZ from "./lang/uz_UZ";
 import { APP_LOCALE_TO_DAYJS, APP_LOCALE_TO_HTML_LANG, mapBrowserLanguageToAppLocale } from "./map-browser-language";
 
 function syncLocaleSideEffects(lng: string | null | undefined) {
-	const appLocale = lng ? mapBrowserLanguageToAppLocale(lng) : LocalEnum.en_US;
+	const appLocale = lng ? mapBrowserLanguageToAppLocale(lng) : LocalEnum.ru_RU;
 	document.documentElement.lang = APP_LOCALE_TO_HTML_LANG[appLocale];
 	dayjs.locale(APP_LOCALE_TO_DAYJS[appLocale]);
 }
@@ -24,14 +24,15 @@ i18n
 	.use(initReactI18next)
 	.init({
 		debug: false,
-		fallbackLng: LocalEnum.en_US,
+		lng: LocalEnum.ru_RU,
+		fallbackLng: LocalEnum.ru_RU,
 		supportedLngs: [LocalEnum.en_US, LocalEnum.ru_RU, LocalEnum.uz_UZ],
 		nonExplicitSupportedLngs: false,
 		interpolation: {
 			escapeValue: false,
 		},
 		detection: {
-			order: ["localStorage", "navigator"],
+			order: ["localStorage"],
 			caches: ["localStorage"],
 			lookupLocalStorage: StorageEnum.I18N,
 			convertDetectedLanguage: (lng) => mapBrowserLanguageToAppLocale(lng),

@@ -181,6 +181,7 @@
 				"post": "Publish responses",
 				"autoReply": "Auto replies",
 				"campaign": "Response campaign",
+				"facebookSearch": "Facebook search",
 				"facebookAccount": "Facebook overview",
 				"facebookFetch": "Facebook post review",
 				"facebookPost": "Facebook responses"
@@ -204,14 +205,14 @@
 			},
 			"search": {
 				"cardTitle": "Find Instagram mentions",
-				"hint": "Scan Instagram for brand, competitor, or campaign mentions and get a simple sentiment summary.",
-				"keywordLabel": "Brand, competitor, or campaign",
-				"keywordPlaceholder": "brand,competitor",
-				"searchTypeLabel": "Where to look",
-				"searchTypePlaceholder": "all | account | hashtag",
-				"maxPostsLabel": "Posts to scan",
-				"periodHoursLabel": "Time range (hours)",
-				"analyzeLabel": "Include sentiment analysis",
+				"hint": "Search Instagram by account usernames, hashtags, or post URLs. Each line is one keyword; comments and sentiment are analyzed automatically.",
+				"keywordsLabel": "Keywords (one per line)",
+				"keywordsPlaceholder": "Depending on type below: usernames, hashtags (with or without #), or full post URLs.",
+				"searchTypeLabel": "Search type",
+				"searchTypePlaceholder": "account | hashtag | url",
+				"maxPostsPerAccountLabel": "Max posts per account or hashtag",
+				"languageLabel": "Language hint (optional)",
+				"languagePlaceholder": "Default ru — clear to omit",
 				"run": "Find mentions",
 				"running": "Scanning Instagram…",
 				"streamProgressTitle": "Live progress",
@@ -252,6 +253,25 @@
 				"optionalCommentsLabel": "Optional fixed comments (one per line)",
 				"run": "Launch campaign",
 				"running": "Running campaign…"
+			},
+			"facebookSearch": {
+				"cardTitle": "Find Facebook mentions",
+				"hint": "Unified Apify-backed Facebook search by account usernames or post URLs. Use one line per username or URL.",
+				"keywordsLabel": "Inputs (one per line)",
+				"keywordsPlaceholder": "Account mode: page names or profile paths. URL mode: full links to Facebook posts.",
+				"searchTypeLabel": "Input type",
+				"typeAccount": "Account",
+				"typeUrl": "Post URL",
+				"maxPostsLabel": "Max posts per account",
+				"maxCommentsPerPostLabel": "Max comments per post",
+				"periodHoursLabel": "Time range (hours)",
+				"languageLabel": "Language hint (optional)",
+				"languagePlaceholder": "Default ru — clear to omit",
+				"run": "Search Facebook",
+				"running": "Searching Facebook…",
+				"streamProgressTitle": "Live progress",
+				"streamProgressSubtitle": "Each line is an update from the Facebook search stream.",
+				"streamProgressWaiting": "Waiting for the first update…"
 			},
 			"facebook": {
 				"accountTitle": "Analyze a Facebook page",
@@ -296,10 +316,13 @@
 			"keywordsPlaceholder": "evos\nbrand name",
 			"channelsLabel": "Channels (one per line)",
 			"channelsPlaceholder": "@channelusername\nhttps://t.me/s/channelname",
+			"includeCommentsLabel": "Include comments",
+			"includeCommentsHint": "Fetches comments per matched post for sentiment around negative comment share.",
 			"periodHoursLabel": "Time range (hours)",
-			"maxPerHitLabel": "Max results per hit",
+			"maxCommentsPerPostLabel": "Max comments per post",
+			"maxCommentsPerPostPlaceholder": "Default 25",
 			"languageLabel": "Language (optional)",
-			"languagePlaceholder": "e.g. en — leave empty to omit",
+			"languagePlaceholder": "Default ru — clear to omit",
 			"run": "Search Telegram",
 			"running": "Searching Telegram…",
 			"streamProgressTitle": "Live progress",
@@ -321,6 +344,12 @@
 					"positive": "Positive"
 				},
 				"views": "{{count}} views",
+				"commentsStatsTitle": "Comments on this post",
+				"commentsTotalLabel": "Total comments",
+				"commentsToggle": "Comments ({{count}})",
+				"commentsNoneInPayload": "Comments were requested — none returned in this payload.",
+				"onThisPost": "On this post",
+				"commentStatShareSuffix": "share",
 				"adviceSummaryTitle": "Executive summary",
 				"issuesTitle": "Recommended actions",
 				"issueFallbackTitle": "Issue",
@@ -374,6 +403,7 @@
 			"loadingStats": "Loading stats…",
 			"exportJson": "Export JSON",
 			"exportCsv": "Export CSV",
+			"exportXlsx": "Export XLSX",
 			"tableIndex": "#",
 			"tablePreview": "Preview",
 			"noRows": "No rows parsed — raw payload below.",
@@ -434,7 +464,37 @@
 				"likes": "Likes",
 				"commentsOnPost": "Comments on post"
 			},
-			"totalInResponse": "Posts in this response"
+			"totalInResponse": "Posts in this response",
+			"socialFeed": {
+				"platform": {
+					"instagram": "Instagram",
+					"facebook": "Facebook",
+					"telegram": "Telegram"
+				},
+				"openPost": "Open post",
+				"copyLink": "Copy link",
+				"copied": "Copied",
+				"showMore": "Show more",
+				"showLess": "Show less",
+				"postSignals": "Post signals",
+				"commentsHeading": "Comments",
+				"commentsTabAll": "All",
+				"commentsListLabel": "Comment list",
+				"unknownUser": "Unknown user",
+				"unlabeled": "Unlabeled",
+				"views": "Views",
+				"genericPostHeadline": "Post",
+				"signal": {
+					"topic": "Topic",
+					"category": "Category",
+					"language": "Language",
+					"summary": "Summary"
+				},
+				"mini": {
+					"commentsTotal": "Comments",
+					"sectionAria": "Comment sentiment for this post"
+				}
+			}
 		},
 		"i18nPage": {
 			"cardTitle": "Multi-language",

@@ -3,14 +3,22 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "react-router";
 import searchAnimation from "@/assets/lotties/search.json";
-import type { AnalyzedComment, AnalyzedPost, CommentsByType, SentimentCounts } from "@/types/comment-api";
+import type { AnalyzedPost, SentimentCounts } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { Progress } from "@/ui/progress";
 import { Text } from "@/ui/typography";
 import { InsightEmptyState } from "./executive-ui";
+import {
+	CaptionSignalsPanel,
+	CollapsibleText,
+	CommentThread,
+	MetricsChipsRow,
+	PostCardShell,
+	SentimentMiniStrip,
+	type SocialPlatformBadge,
+} from "./social-feed";
 
-const SENTIMENTS = ["positive", "negative", "neutral"] as const;
 const LOADING_START_TIMES = new Map<string, number>();
 
 function toRecord(value: unknown): Record<string, unknown> | null {
@@ -210,66 +218,6 @@ export function MetricCard({
 	);
 }
 
-function normalizeComments(comments: unknown): CommentsByType {
-	const record = toRecord(comments);
-	if (!record) return {};
-	return SENTIMENTS.reduce<CommentsByType>((acc, sentiment) => {
-		const value = record[sentiment];
-		acc[sentiment] = Array.isArray(value) ? (value as AnalyzedComment[]) : [];
-		return acc;
-	}, {});
-}
-
-export function GroupedComments({ comments }: { comments?: CommentsByType | unknown }) {
-	const { t } = useTranslation();
-	const groups = normalizeComments(comments);
-	const hasComments = SENTIMENTS.some((sentiment) => (groups[sentiment]?.length ?? 0) > 0);
-
-	if (!hasComments) return null;
-
-	return (
-		<div className="grid gap-3 lg:grid-cols-3">
-			{SENTIMENTS.map((sentiment) => {
-				const rows = groups[sentiment] ?? [];
-				return (
-					<Card key={sentiment} className="bg-background/70">
-						<CardHeader className="pb-2">
-							<CardTitle className="flex items-center justify-between text-sm capitalize">
-								{t(`sys.commentApi.sentiment.${sentiment}`)}
-								<Badge variant={sentiment === "negative" ? "error" : sentiment === "positive" ? "success" : "outline"}>
-									{rows.length}
-								</Badge>
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="space-y-2">
-							{rows.length === 0 ? (
-								<Text variant="caption" className="text-muted-foreground">
-									{t("sys.commentApi.noCommentsInGroup")}
-								</Text>
-							) : (
-								<div className="max-h-96 space-y-2 overflow-y-auto pr-1">
-									{rows.map((comment, index) => (
-										<div
-											key={`${comment.username ?? "user"}-${comment.timestamp ?? index}`}
-											className="rounded-xl border bg-card/60 p-3"
-										>
-											<div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-												<span className="font-medium text-foreground">{comment.username ?? "unknown"}</span>
-												<span>{comment.timestamp ?? ""}</span>
-											</div>
-											<p className="mt-1 text-sm whitespace-pre-wrap">{comment.text ?? JSON.stringify(comment)}</p>
-										</div>
-									))}
-								</div>
-							)}
-						</CardContent>
-					</Card>
-				);
-			})}
-		</div>
-	);
-}
-
 function extractStats(value: unknown): SentimentCounts | Record<string, unknown> | null {
 	const record = toRecord(value);
 	if (!record) return null;
@@ -327,47 +275,26 @@ function extractPosts(value: unknown): AnalyzedPost[] {
 	return [];
 }
 
-function formatPostMetric(value: string | number | undefined): string {
-	if (value === undefined) return "—";
-	if (typeof value === "string" && value.trim() === "") return "—";
-	return String(value);
+function formatDisplayDatetime(raw: string | undefined): string | undefined {
+	if (!raw?.trim()) return undefined;
+	const ms = Date.parse(raw);
+	if (!Number.isNaN(ms)) return new Date(ms).toLocaleString();
+	return raw.trim();
 }
 
-function PostMetaStrip({ post }: { post: AnalyzedPost }) {
-	const { t } = useTranslation();
-	const hasShortcode = typeof post.shortcode === "string" && post.shortcode.length > 0;
-	const showLikes = post.like_count !== undefined;
-	const showComments = post.comment_count !== undefined;
-	if (!hasShortcode && !showLikes && !showComments) return null;
+function inferAggregatePlatform(_root: Record<string, unknown> | null, posts: AnalyzedPost[]): SocialPlatformBadge {
+	for (const p of posts) {
+		const url = typeof p.url === "string" ? p.url : "";
+		if (/facebook\.com|fb\.watch|fb\.com\b/i.test(url)) return "facebook";
+	}
+	return "instagram";
+}
 
-	return (
-		<div className="flex flex-wrap gap-2">
-			{hasShortcode && (
-				<div className="min-w-[140px] flex-1 rounded-xl border bg-muted/40 px-3 py-2">
-					<div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-						{t("sys.commentApi.post.shortcode")}
-					</div>
-					<div className="mt-0.5 font-mono text-sm break-all">{post.shortcode}</div>
-				</div>
-			)}
-			{showLikes && (
-				<div className="min-w-[100px] flex-1 rounded-xl border bg-muted/40 px-3 py-2">
-					<div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-						{t("sys.commentApi.post.likes")}
-					</div>
-					<div className="mt-0.5 text-sm font-medium">{formatPostMetric(post.like_count)}</div>
-				</div>
-			)}
-			{showComments && (
-				<div className="min-w-[100px] flex-1 rounded-xl border bg-muted/40 px-3 py-2">
-					<div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-						{t("sys.commentApi.post.commentsOnPost")}
-					</div>
-					<div className="mt-0.5 text-sm font-medium">{formatPostMetric(post.comment_count)}</div>
-				</div>
-			)}
-		</div>
-	);
+function inferPostPlatform(post: AnalyzedPost, fallback: SocialPlatformBadge): SocialPlatformBadge {
+	const url = typeof post.url === "string" ? post.url : "";
+	if (/facebook\.com|fb\.watch|fb\.com\b/i.test(url)) return "facebook";
+	if (/instagram\.com/i.test(url)) return "instagram";
+	return fallback;
 }
 
 export function ApiResultView({ value, empty }: { value: unknown; empty?: string }) {
@@ -388,6 +315,7 @@ export function ApiResultView({ value, empty }: { value: unknown; empty?: string
 	const overallCards = extractOverallCards(value, t);
 	const rootUsername = typeof root?.username === "string" ? root.username : undefined;
 	const streamTotal = typeof root?.total === "number" ? root.total : undefined;
+	const defaultPlatform = inferAggregatePlatform(root, posts);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -433,39 +361,43 @@ export function ApiResultView({ value, empty }: { value: unknown; empty?: string
 					</CardContent>
 				</Card>
 			)}
-			<GroupedComments comments={comments} />
+			<CommentThread comments={comments} />
 			{posts.length > 0 && (
-				<div className="flex flex-col gap-3">
-					{posts.map((post, index) => (
-						<Card key={post.url ?? `post-${index}`} className="overflow-hidden bg-background/70">
-							<CardHeader>
-								<CardTitle className="text-base">
-									{post.username ?? post.author ?? rootUsername ?? "Post"} {post.timestamp ? `- ${post.timestamp}` : ""}
-								</CardTitle>
-								{post.url && (
-									<a className="text-sm text-primary break-all" href={post.url} target="_blank" rel="noreferrer">
-										{post.url}
-									</a>
-								)}
-							</CardHeader>
-							<CardContent className="flex flex-col gap-3">
-								<PostMetaStrip post={post} />
-								{post.caption && <p className="text-sm whitespace-pre-wrap">{post.caption}</p>}
-								{post.caption_analysis && (
-									<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-										{Object.entries(post.caption_analysis).map(([key, item]) => (
-											<div key={key} className="rounded-xl bg-muted/60 p-3 text-sm">
-												<div className="text-xs uppercase text-muted-foreground">{key}</div>
-												<div className="mt-1 font-medium">{String(item ?? "-")}</div>
-											</div>
-										))}
-									</div>
-								)}
-								<SentimentSummary stats={post.comment_stats ?? post.stats} />
-								<GroupedComments comments={post.comments} />
-							</CardContent>
-						</Card>
-					))}
+				<div className="flex flex-col gap-4">
+					{posts.map((post, index) => {
+						const platform = inferPostPlatform(post, defaultPlatform);
+						const headline =
+							post.username ?? post.author ?? rootUsername ?? t("sys.commentApi.socialFeed.genericPostHeadline");
+						const datetimeLine = formatDisplayDatetime(post.timestamp);
+						return (
+							<PostCardShell
+								key={post.url ?? `post-${index}`}
+								platform={platform}
+								headline={headline}
+								datetimeLine={datetimeLine}
+								url={post.url}
+							>
+								<MetricsChipsRow
+									shortcode={post.shortcode}
+									likeCount={post.like_count}
+									commentCount={post.comment_count}
+								/>
+								{post.caption ? <CollapsibleText text={post.caption} clampClassName="line-clamp-4" /> : null}
+								{post.caption_analysis ? <CaptionSignalsPanel analysis={post.caption_analysis} /> : null}
+								<SentimentMiniStrip
+									stats={post.comment_stats ?? post.stats}
+									labels={{
+										legend: t("sys.commentApi.socialFeed.mini.sectionAria"),
+										total: t("sys.commentApi.socialFeed.mini.commentsTotal"),
+										positive: t("sys.commentApi.sentiment.positive"),
+										negative: t("sys.commentApi.sentiment.negative"),
+										neutral: t("sys.commentApi.sentiment.neutral"),
+									}}
+								/>
+								<CommentThread comments={post.comments} />
+							</PostCardShell>
+						);
+					})}
 				</div>
 			)}
 			{posts.length === 0 && comments === undefined && stats === null && overallCards.length === 0 && (

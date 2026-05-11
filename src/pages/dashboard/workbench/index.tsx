@@ -13,7 +13,9 @@ import {
 import { ApiJsonPreview, ApiLongRunningNotice, ApiResultView } from "@/components/comment-api/api-result";
 import { WorkflowShell } from "@/components/comment-api/executive-ui";
 import { SearchStreamProgress, type SearchStreamStepRow } from "@/components/comment-api/search-stream-progress";
+import { SentimentReportSection } from "@/components/comment-api/sentiment-report-section";
 import Icon from "@/components/icon/icon";
+import { DEFAULT_COMMENT_API_LANGUAGE_HINT } from "@/constants/api-defaults";
 import {
 	type AutoReplyRequest,
 	type CampaignRequest,
@@ -22,8 +24,11 @@ import {
 	type FacebookAccountAnalyzeRequest,
 	type FacebookFetchRequest,
 	type FacebookPostCommentRequest,
+	type FacebookUnifiedSearchRequest,
+	type FacebookUnifiedSearchType,
+	type InstagramUnifiedSearchRequest,
+	type InstagramUnifiedSearchType,
 	type PostCommentsRequest,
-	type SearchRequest,
 } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
@@ -49,6 +54,9 @@ import {
 } from "@/utils/mergeWorkbenchStreamChunk";
 
 const CACHE_TIME = 1000 * 60 * 30;
+
+/** Sent with Instagram unified search/stream; not exposed in the workbench UI. */
+const INSTAGRAM_UNIFIED_MAX_COMMENTS_PER_POST = 150;
 
 type FbPostCommentsMode = "manual" | "auto";
 
@@ -171,9 +179,17 @@ export default function Workbench() {
 	const { t } = useTranslation();
 	const { endpoint } = useParams();
 	const queryClient = useQueryClient();
-	const activeMenu = ["search", "post", "autoReply", "campaign", "fbAccount", "fbFetch", "fbPost"].includes(
-		endpoint ?? "",
-	)
+	const activeMenu = [
+		"search",
+		"stats",
+		"post",
+		"autoReply",
+		"campaign",
+		"fbSearch",
+		"fbAccount",
+		"fbFetch",
+		"fbPost",
+	].includes(endpoint ?? "")
 		? (endpoint as string)
 		: "search";
 	const accountsQuery = useQuery({
@@ -190,11 +206,10 @@ export default function Workbench() {
 		refetchInterval: 60_000,
 	});
 
-	const [searchKeyword, setSearchKeyword] = useState("");
-	const [searchMaxPosts, setSearchMaxPosts] = useState(20);
-	const [searchPeriodHours, setSearchPeriodHours] = useState(24);
-	const [searchType, setSearchType] = useState("all");
-	const [searchAnalyze, setSearchAnalyze] = useState(true);
+	const [searchKeywordsText, setSearchKeywordsText] = useState("");
+	const [searchMaxPostsPerAccount, setSearchMaxPostsPerAccount] = useState(5);
+	const [searchType, setSearchType] = useState<InstagramUnifiedSearchType>("account");
+	const [searchLanguage, setSearchLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
 	const searchAbortRef = useRef<AbortController | null>(null);
 	const searchStreamStepIdRef = useRef(0);
 	const [searchStreamSteps, setSearchStreamSteps] = useState<SearchStreamStepRow[]>([]);
@@ -214,10 +229,14 @@ export default function Workbench() {
 	const fbPostAbortRef = useRef<AbortController | null>(null);
 	const fbPostStreamStepIdRef = useRef(0);
 
+	const fbUnifiedSearchAbortRef = useRef<AbortController | null>(null);
+	const fbUnifiedSearchStreamStepIdRef = useRef(0);
+
 	useEffect(() => {
 		return () => {
 			searchAbortRef.current?.abort();
 			autoReplyAbortRef.current?.abort();
+			fbUnifiedSearchAbortRef.current?.abort();
 			fbAnalyzeAbortRef.current?.abort();
 			fbFetchAbortRef.current?.abort();
 			fbPostAbortRef.current?.abort();
@@ -225,13 +244,23 @@ export default function Workbench() {
 	}, []);
 
 	const runSearch = () => {
-		const body: SearchRequest = {
-			keyword: searchKeyword.trim(),
-			max_posts: searchMaxPosts,
-			period_hours: searchPeriodHours,
-			search_type: searchType,
-			analyze: searchAnalyze,
+		const keywords = linesToArray(searchKeywordsText);
+		const maxPostsEffective =
+			searchMaxPostsPerAccount === 0
+				? 10
+				: Number.isFinite(searchMaxPostsPerAccount) && searchMaxPostsPerAccount > 0
+					? Math.floor(searchMaxPostsPerAccount)
+					: 10;
+		const body: InstagramUnifiedSearchRequest = {
+			type: searchType,
+			keywords,
+			max_posts_per_account: maxPostsEffective,
+			max_comments_per_post: INSTAGRAM_UNIFIED_MAX_COMMENTS_PER_POST,
 		};
+		const lang = searchLanguage.trim();
+		if (lang !== "") {
+			body.language = lang;
+		}
 		searchAbortRef.current?.abort();
 		const ac = new AbortController();
 		searchAbortRef.current = ac;
@@ -273,6 +302,72 @@ export default function Workbench() {
 				if (searchAbortRef.current === ac) {
 					setSearchStreaming(false);
 					setSearchStreamSteps([]);
+				}
+			});
+	};
+
+	const [fbUnifiedKeywordsText, setFbUnifiedKeywordsText] = useState("");
+	const [fbUnifiedSearchType, setFbUnifiedSearchType] = useState<FacebookUnifiedSearchType>("account");
+	const [fbUnifiedMaxPosts, setFbUnifiedMaxPosts] = useState(5);
+	const [fbUnifiedMaxCommentsPerPost, setFbUnifiedMaxCommentsPerPost] = useState(100);
+	const [fbUnifiedPeriodHours, setFbUnifiedPeriodHours] = useState(168);
+	const [fbUnifiedLanguage, setFbUnifiedLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
+	const [fbUnifiedSearchStreamSteps, setFbUnifiedSearchStreamSteps] = useState<SearchStreamStepRow[]>([]);
+	const [fbUnifiedSearchData, setFbUnifiedSearchData] = useState<unknown>();
+	const [fbUnifiedSearchStreaming, setFbUnifiedSearchStreaming] = useState(false);
+	const [fbUnifiedSearchError, setFbUnifiedSearchError] = useState<Error | null>(null);
+
+	const runFacebookUnifiedSearch = () => {
+		const keywords = linesToArray(fbUnifiedKeywordsText);
+		const body: FacebookUnifiedSearchRequest = {
+			keywords,
+			type: fbUnifiedSearchType,
+			max_posts: fbUnifiedMaxPosts,
+			max_comments_per_post: fbUnifiedMaxCommentsPerPost,
+			period_hours: fbUnifiedPeriodHours,
+			...(fbUnifiedLanguage.trim() !== "" ? { language: fbUnifiedLanguage.trim() } : {}),
+		};
+		fbUnifiedSearchAbortRef.current?.abort();
+		const ac = new AbortController();
+		fbUnifiedSearchAbortRef.current = ac;
+		setFbUnifiedSearchError(null);
+		setFbUnifiedSearchData(undefined);
+		fbUnifiedSearchStreamStepIdRef.current = 0;
+		setFbUnifiedSearchStreamSteps([]);
+		setFbUnifiedSearchStreaming(true);
+		let hasResultChunk = false;
+		void commentFacebookService
+			.searchStream(body, {
+				signal: ac.signal,
+				onEvent: (chunk) => {
+					const progressStep = getSearchStreamProgressStep(chunk);
+					if (progressStep !== null) {
+						const id = ++fbUnifiedSearchStreamStepIdRef.current;
+						setFbUnifiedSearchStreamSteps((prev) => [...prev, { id, ...progressStep }]);
+						return;
+					}
+					if (hasSearchResultPayload(chunk)) {
+						hasResultChunk = true;
+					}
+					setFbUnifiedSearchData((prev: unknown) => mergeSearchStreamChunk(prev, chunk));
+				},
+			})
+			.then(async () => {
+				if (hasResultChunk || ac.signal.aborted || fbUnifiedSearchAbortRef.current !== ac) {
+					return;
+				}
+				const fallbackResult = await commentFacebookService.search(body);
+				if (fbUnifiedSearchAbortRef.current === ac) {
+					setFbUnifiedSearchData(fallbackResult);
+				}
+			})
+			.catch((error: unknown) => {
+				setFbUnifiedSearchError(error instanceof Error ? error : new Error(String(error)));
+			})
+			.finally(() => {
+				if (fbUnifiedSearchAbortRef.current === ac) {
+					setFbUnifiedSearchStreaming(false);
+					setFbUnifiedSearchStreamSteps([]);
 				}
 			});
 	};
@@ -620,57 +715,52 @@ export default function Workbench() {
 					>
 						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
 							<div className="space-y-2 sm:col-span-2">
-								<Label htmlFor="kw">{t("sys.workbench.search.keywordLabel")}</Label>
-								<Input
+								<Label htmlFor="kw">{t("sys.workbench.search.keywordsLabel")}</Label>
+								<Textarea
 									id="kw"
-									value={searchKeyword}
-									onChange={(event) => setSearchKeyword(event.target.value)}
-									placeholder={t("sys.workbench.search.keywordPlaceholder")}
+									value={searchKeywordsText}
+									onChange={(event) => setSearchKeywordsText(event.target.value)}
+									placeholder={t("sys.workbench.search.keywordsPlaceholder")}
+									rows={4}
+									className="font-mono text-sm"
 								/>
 							</div>
 							<div className="space-y-2">
 								<Label htmlFor="st">{t("sys.workbench.search.searchTypeLabel")}</Label>
-								<Select value={searchType} onValueChange={setSearchType}>
+								<Select
+									value={searchType}
+									onValueChange={(value) => setSearchType(value as InstagramUnifiedSearchType)}
+								>
 									<SelectTrigger id="st">
 										<SelectValue />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="all">all</SelectItem>
 										<SelectItem value="account">account</SelectItem>
 										<SelectItem value="hashtag">hashtag</SelectItem>
+										<SelectItem value="url">url</SelectItem>
 									</SelectContent>
 								</Select>
 							</div>
 							<div className="space-y-2">
-								<Label htmlFor="mp">{t("sys.workbench.search.maxPostsLabel")}</Label>
+								<Label htmlFor="mpa">{t("sys.workbench.search.maxPostsPerAccountLabel")}</Label>
 								<Input
-									id="mp"
+									id="mpa"
 									type="number"
-									value={searchMaxPosts}
-									onChange={(event) => setSearchMaxPosts(Number(event.target.value))}
+									value={searchMaxPostsPerAccount}
+									onChange={(event) => setSearchMaxPostsPerAccount(Number(event.target.value))}
 								/>
 							</div>
 							<div className="space-y-2">
-								<Label htmlFor="ph">{t("sys.workbench.search.periodHoursLabel")}</Label>
+								<Label htmlFor="lang">{t("sys.workbench.search.languageLabel")}</Label>
 								<Input
-									id="ph"
-									type="number"
-									value={searchPeriodHours}
-									onChange={(event) => setSearchPeriodHours(Number(event.target.value))}
+									id="lang"
+									value={searchLanguage}
+									onChange={(event) => setSearchLanguage(event.target.value)}
+									placeholder={t("sys.workbench.search.languagePlaceholder")}
 								/>
-							</div>
-							<div className="flex items-center gap-2 pt-6">
-								<input
-									id="an"
-									type="checkbox"
-									className="size-4"
-									checked={searchAnalyze}
-									onChange={(event) => setSearchAnalyze(event.target.checked)}
-								/>
-								<Label htmlFor="an">{t("sys.workbench.search.analyzeLabel")}</Label>
 							</div>
 						</div>
-						<Button disabled={!searchKeyword.trim() || searchStreaming} onClick={runSearch}>
+						<Button disabled={linesToArray(searchKeywordsText).length === 0 || searchStreaming} onClick={runSearch}>
 							{searchStreaming ? t("sys.workbench.search.running") : t("sys.workbench.search.run")}
 						</Button>
 						<SearchStreamProgress active={searchStreaming} storageKey="workbench-search" steps={searchStreamSteps} />
@@ -678,6 +768,10 @@ export default function Workbench() {
 							value={searchData !== undefined ? searchData : searchError !== null ? searchError : undefined}
 						/>
 					</WorkflowShell>
+				</TabsContent>
+
+				<TabsContent value="stats">
+					<SentimentReportSection />
 				</TabsContent>
 
 				<TabsContent value="post">
@@ -907,6 +1001,105 @@ export default function Workbench() {
 						<ApiLongRunningNotice active={campaignMutation.isPending} storageKey="workbench-campaign" />
 						<ApiResultView
 							value={campaignMutation.data ?? (campaignMutation.isError ? campaignMutation.error : undefined)}
+						/>
+					</WorkflowShell>
+				</TabsContent>
+
+				<TabsContent value="fbSearch">
+					<WorkflowShell
+						title={t("sys.workbench.facebookSearch.cardTitle")}
+						description={t("sys.workbench.facebookSearch.hint")}
+						platform="Facebook"
+						intent={t("sys.workbench.intent.discovery")}
+					>
+						<div className="space-y-2">
+							<Label htmlFor="fbus-kw">{t("sys.workbench.facebookSearch.keywordsLabel")}</Label>
+							<Textarea
+								id="fbus-kw"
+								className="min-h-[88px] font-mono text-sm"
+								value={fbUnifiedKeywordsText}
+								onChange={(event) => setFbUnifiedKeywordsText(event.target.value)}
+								placeholder={t("sys.workbench.facebookSearch.keywordsPlaceholder")}
+							/>
+						</div>
+						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+							<div className="space-y-2">
+								<Label htmlFor="fbus-type">{t("sys.workbench.facebookSearch.searchTypeLabel")}</Label>
+								<Select
+									value={fbUnifiedSearchType}
+									onValueChange={(v) => setFbUnifiedSearchType(v as FacebookUnifiedSearchType)}
+								>
+									<SelectTrigger id="fbus-type">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="account">{t("sys.workbench.facebookSearch.typeAccount")}</SelectItem>
+										<SelectItem value="url">{t("sys.workbench.facebookSearch.typeUrl")}</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="fbus-mp">{t("sys.workbench.facebookSearch.maxPostsLabel")}</Label>
+								<Input
+									id="fbus-mp"
+									type="number"
+									value={fbUnifiedMaxPosts}
+									onChange={(event) => setFbUnifiedMaxPosts(Number(event.target.value))}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="fbus-mcp">{t("sys.workbench.facebookSearch.maxCommentsPerPostLabel")}</Label>
+								<Input
+									id="fbus-mcp"
+									type="number"
+									value={fbUnifiedMaxCommentsPerPost}
+									onChange={(event) => setFbUnifiedMaxCommentsPerPost(Number(event.target.value))}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="fbus-ph">{t("sys.workbench.facebookSearch.periodHoursLabel")}</Label>
+								<Input
+									id="fbus-ph"
+									type="number"
+									value={fbUnifiedPeriodHours}
+									onChange={(event) => setFbUnifiedPeriodHours(Number(event.target.value))}
+								/>
+							</div>
+							<div className="space-y-2 sm:col-span-2">
+								<Label htmlFor="fbus-lang">{t("sys.workbench.facebookSearch.languageLabel")}</Label>
+								<Input
+									id="fbus-lang"
+									value={fbUnifiedLanguage}
+									onChange={(event) => setFbUnifiedLanguage(event.target.value)}
+									placeholder={t("sys.workbench.facebookSearch.languagePlaceholder")}
+								/>
+							</div>
+						</div>
+						<Button
+							disabled={linesToArray(fbUnifiedKeywordsText).length === 0 || fbUnifiedSearchStreaming}
+							onClick={runFacebookUnifiedSearch}
+						>
+							{fbUnifiedSearchStreaming
+								? t("sys.workbench.facebookSearch.running")
+								: t("sys.workbench.facebookSearch.run")}
+						</Button>
+						<SearchStreamProgress
+							active={fbUnifiedSearchStreaming}
+							storageKey="workbench-fb-unified-search"
+							steps={fbUnifiedSearchStreamSteps}
+							title={t("sys.workbench.facebookSearch.streamProgressTitle")}
+							subtitle={t("sys.workbench.facebookSearch.streamProgressSubtitle")}
+							waitingText={t("sys.workbench.facebookSearch.streamProgressWaiting")}
+							runningLabel={t("sys.workbench.facebookSearch.running")}
+						/>
+						<ApiResultView
+							value={
+								fbUnifiedSearchData !== undefined
+									? fbUnifiedSearchData
+									: fbUnifiedSearchError !== null
+										? fbUnifiedSearchError
+										: undefined
+							}
 						/>
 					</WorkflowShell>
 				</TabsContent>
