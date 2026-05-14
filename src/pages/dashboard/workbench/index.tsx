@@ -14,6 +14,7 @@ import { ApiLongRunningNotice, ApiResultView } from "@/components/comment-api/ap
 import { WorkflowShell } from "@/components/comment-api/executive-ui";
 import { SearchStreamProgress, type SearchStreamStepRow } from "@/components/comment-api/search-stream-progress";
 import { SentimentReportSection } from "@/components/comment-api/sentiment-report-section";
+import { MultiValueChipInput } from "@/components/form/multi-value-chip-input";
 import Icon from "@/components/icon/icon";
 import { PeriodHoursPresetSelect } from "@/components/period-hours-preset-select";
 import { DEFAULT_COMMENT_API_LANGUAGE_HINT } from "@/constants/api-defaults";
@@ -67,6 +68,9 @@ const INSTAGRAM_UNIFIED_MAX_COMMENTS_PER_POST = 150;
 
 /** Facebook unified search: fixed cap, not exposed in the workbench UI. */
 const FACEBOOK_UNIFIED_MAX_COMMENTS_PER_POST = 150;
+
+const LANGUAGE_SELECT_OMIT = "__language_omit__" as const;
+const COMMENT_API_LANGUAGE_CODES = ["ru", "en", "uz"] as const;
 
 type FbPostCommentsMode = "manual" | "auto";
 
@@ -218,7 +222,7 @@ export default function Workbench() {
 		refetchInterval: 60_000,
 	});
 
-	const [searchKeywordsText, setSearchKeywordsText] = useState("");
+	const [searchKeywords, setSearchKeywords] = useState<string[]>([]);
 	const [searchMaxPostsPerAccount, setSearchMaxPostsPerAccount] = useState<OptionalFiniteNumber>(5);
 	const [searchType, setSearchType] = useState<InstagramUnifiedSearchType>("account");
 	const [searchLanguage, setSearchLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
@@ -260,7 +264,7 @@ export default function Workbench() {
 	}, []);
 
 	const runSearch = () => {
-		const keywords = linesToArray(searchKeywordsText);
+		const keywords = searchKeywords;
 		const maxPostsEffective =
 			searchMaxPostsPerAccount === ""
 				? 10
@@ -324,7 +328,7 @@ export default function Workbench() {
 			});
 	};
 
-	const [fbUnifiedKeywordsText, setFbUnifiedKeywordsText] = useState("");
+	const [fbUnifiedKeywords, setFbUnifiedKeywords] = useState<string[]>([]);
 	const [fbUnifiedSearchType, setFbUnifiedSearchType] = useState<FacebookUnifiedSearchType>("account");
 	const [fbUnifiedMaxPosts, setFbUnifiedMaxPosts] = useState<OptionalFiniteNumber>(5);
 	const [fbUnifiedPeriodHours, setFbUnifiedPeriodHours] = useState(168);
@@ -335,7 +339,7 @@ export default function Workbench() {
 	const [fbUnifiedSearchError, setFbUnifiedSearchError] = useState<Error | null>(null);
 
 	const runFacebookUnifiedSearch = () => {
-		const keywords = linesToArray(fbUnifiedKeywordsText);
+		const keywords = fbUnifiedKeywords;
 		const body: FacebookUnifiedSearchRequest = {
 			keywords,
 			type: fbUnifiedSearchType,
@@ -736,6 +740,10 @@ export default function Workbench() {
 		});
 	};
 
+	const searchLanguageSelectValue = searchLanguage.trim() === "" ? LANGUAGE_SELECT_OMIT : searchLanguage.trim();
+	const fbUnifiedLanguageSelectValue =
+		fbUnifiedLanguage.trim() === "" ? LANGUAGE_SELECT_OMIT : fbUnifiedLanguage.trim();
+
 	return (
 		<div className="flex flex-col gap-4 w-full">
 			<div className="flex flex-wrap items-start justify-between gap-3">
@@ -777,62 +785,92 @@ export default function Workbench() {
 						platform="Instagram"
 						intent={t("sys.workbench.intent.discovery")}
 					>
-						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-							<div className="space-y-2 sm:col-span-2">
-								<Label htmlFor="kw">{t("sys.workbench.search.keywordsLabel")}</Label>
-								<Textarea
-									id="kw"
-									value={searchKeywordsText}
-									onChange={(event) => setSearchKeywordsText(event.target.value)}
-									placeholder={t("sys.workbench.search.keywordsPlaceholder")}
-									rows={4}
-									className="font-mono text-sm"
-								/>
+						<div className="flex flex-col gap-4">
+							<MultiValueChipInput
+								className="min-w-0"
+								id="ig-search-keywords"
+								label={t("sys.workbench.search.keywordsLabel")}
+								hint={t("sys.workbench.search.chipCommitHint")}
+								values={searchKeywords}
+								onChange={setSearchKeywords}
+								placeholder={t("sys.workbench.search.keywordsPlaceholder")}
+								disabled={searchStreaming}
+								removeItemAriaLabel={(value) => t("sys.workbench.search.removeChipAria", { value })}
+							/>
+							<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:items-start lg:gap-5">
+								<div className="space-y-2">
+									<Label htmlFor="st">{t("sys.workbench.search.searchTypeLabel")}</Label>
+									<Select
+										disabled={searchStreaming}
+										value={searchType}
+										onValueChange={(value) => setSearchType(value as InstagramUnifiedSearchType)}
+									>
+										<SelectTrigger id="st" className="h-9 w-full min-w-0">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="account">account</SelectItem>
+											<SelectItem value="hashtag">hashtag</SelectItem>
+											<SelectItem value="url">url</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="mpa">{t("sys.workbench.search.maxPostsPerAccountLabel")}</Label>
+									<Input
+										id="mpa"
+										type="number"
+										className="h-9"
+										value={optionalFiniteNumberDisplay(searchMaxPostsPerAccount)}
+										onChange={(event) =>
+											setOptionalFiniteNumberFromInput(event.target.value, setSearchMaxPostsPerAccount)
+										}
+										disabled={searchStreaming}
+									/>
+								</div>
+								<div className="space-y-2 sm:col-span-2 lg:col-span-1">
+									<Label htmlFor="ig-search-lang-select">{t("sys.workbench.search.languageLabel")}</Label>
+									<Select
+										disabled={searchStreaming}
+										value={searchLanguageSelectValue}
+										onValueChange={(next) => setSearchLanguage(next === LANGUAGE_SELECT_OMIT ? "" : next)}
+									>
+										<SelectTrigger id="ig-search-lang-select" className="h-9 w-full min-w-0">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent position="popper" className="w-[var(--radix-select-trigger-width)]">
+											<SelectItem value={LANGUAGE_SELECT_OMIT}>
+												{t("sys.telegramSearch.languageOption.omit")}
+											</SelectItem>
+											{COMMENT_API_LANGUAGE_CODES.map((code) => (
+												<SelectItem key={code} value={code}>
+													{t(`sys.telegramSearch.languageOption.${code}`)}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
 							</div>
-							<div className="space-y-2">
-								<Label htmlFor="st">{t("sys.workbench.search.searchTypeLabel")}</Label>
-								<Select
-									value={searchType}
-									onValueChange={(value) => setSearchType(value as InstagramUnifiedSearchType)}
-								>
-									<SelectTrigger id="st">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="account">account</SelectItem>
-										<SelectItem value="hashtag">hashtag</SelectItem>
-										<SelectItem value="url">url</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="mpa">{t("sys.workbench.search.maxPostsPerAccountLabel")}</Label>
-								<Input
-									id="mpa"
-									type="number"
-									value={optionalFiniteNumberDisplay(searchMaxPostsPerAccount)}
-									onChange={(event) =>
-										setOptionalFiniteNumberFromInput(event.target.value, setSearchMaxPostsPerAccount)
-									}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="lang">{t("sys.workbench.search.languageLabel")}</Label>
-								<Input
-									id="lang"
-									value={searchLanguage}
-									onChange={(event) => setSearchLanguage(event.target.value)}
-									placeholder={t("sys.workbench.search.languagePlaceholder")}
-								/>
-							</div>
+							<Button
+								className="w-full sm:w-auto"
+								disabled={searchKeywords.length === 0 || searchStreaming}
+								onClick={runSearch}
+							>
+								{searchStreaming ? t("sys.workbench.search.running") : t("sys.workbench.search.run")}
+							</Button>
+							<SearchStreamProgress
+								active={searchStreaming}
+								storageKey="workbench-search"
+								title={t("sys.workbench.search.streamProgressTitle")}
+								subtitle={t("sys.workbench.search.streamProgressSubtitle")}
+								waitingText={t("sys.workbench.search.streamProgressWaiting")}
+								runningLabel={t("sys.workbench.search.running")}
+								steps={searchStreamSteps}
+							/>
+							<ApiResultView
+								value={searchData !== undefined ? searchData : searchError !== null ? searchError : undefined}
+							/>
 						</div>
-						<Button disabled={linesToArray(searchKeywordsText).length === 0 || searchStreaming} onClick={runSearch}>
-							{searchStreaming ? t("sys.workbench.search.running") : t("sys.workbench.search.run")}
-						</Button>
-						<SearchStreamProgress active={searchStreaming} storageKey="workbench-search" steps={searchStreamSteps} />
-						<ApiResultView
-							value={searchData !== undefined ? searchData : searchError !== null ? searchError : undefined}
-						/>
 					</WorkflowShell>
 				</TabsContent>
 
@@ -847,46 +885,50 @@ export default function Workbench() {
 						platform="Instagram"
 						intent={t("sys.workbench.intent.action")}
 					>
-						<div className="space-y-2">
-							<Label htmlFor="pu">{t("sys.workbench.post.postUrlLabel")}</Label>
-							<Input
-								id="pu"
-								value={postUrl}
-								onChange={(event) => setPostUrl(event.target.value)}
-								placeholder={t("sys.workbench.post.postUrlPlaceholder")}
-							/>
+						<div className="rounded-xl border border-border/80 bg-muted/25 px-4 py-3">
+							<div className="space-y-2">
+								<Label htmlFor="pu">{t("sys.workbench.post.postUrlLabel")}</Label>
+								<Input
+									id="pu"
+									value={postUrl}
+									onChange={(event) => setPostUrl(event.target.value)}
+									placeholder={t("sys.workbench.post.postUrlPlaceholder")}
+								/>
+							</div>
 						</div>
 
-						<div className="space-y-3">
-							<Label className="text-sm font-medium">{t("sys.workbench.post.postModeLabel")}</Label>
-							<RadioGroup
-								value={igPostCommentsMode}
-								onValueChange={(value) => setIgPostCommentsMode(value as IgPostCommentsMode)}
-								className="grid gap-3 sm:grid-cols-2"
-							>
-								<div className="flex items-start gap-3 rounded-lg border border-border p-3">
-									<RadioGroupItem value="self" id="ig-mode-self" className="mt-0.5" />
-									<div className="grid gap-1">
-										<Label htmlFor="ig-mode-self" className="cursor-pointer leading-none font-normal">
-											{t("sys.workbench.post.postModeSelf")}
-										</Label>
-										<Text variant="caption" className="text-muted-foreground">
-											{t("sys.workbench.post.postModeSelfHint")}
-										</Text>
+						<div className="rounded-xl border border-border/80 bg-muted/25 px-4 py-3">
+							<div className="space-y-3">
+								<Label className="text-sm font-medium">{t("sys.workbench.post.postModeLabel")}</Label>
+								<RadioGroup
+									value={igPostCommentsMode}
+									onValueChange={(value) => setIgPostCommentsMode(value as IgPostCommentsMode)}
+									className="grid gap-3 sm:grid-cols-2"
+								>
+									<div className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/50 p-3">
+										<RadioGroupItem value="self" id="ig-mode-self" className="mt-0.5" />
+										<div className="grid gap-1">
+											<Label htmlFor="ig-mode-self" className="cursor-pointer leading-none font-normal">
+												{t("sys.workbench.post.postModeSelf")}
+											</Label>
+											<Text variant="caption" className="text-muted-foreground">
+												{t("sys.workbench.post.postModeSelfHint")}
+											</Text>
+										</div>
 									</div>
-								</div>
-								<div className="flex items-start gap-3 rounded-lg border border-border p-3">
-									<RadioGroupItem value="ai" id="ig-mode-ai" className="mt-0.5" />
-									<div className="grid gap-1">
-										<Label htmlFor="ig-mode-ai" className="cursor-pointer leading-none font-normal">
-											{t("sys.workbench.post.postModeAi")}
-										</Label>
-										<Text variant="caption" className="text-muted-foreground">
-											{t("sys.workbench.post.postModeAiHint")}
-										</Text>
+									<div className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/50 p-3">
+										<RadioGroupItem value="ai" id="ig-mode-ai" className="mt-0.5" />
+										<div className="grid gap-1">
+											<Label htmlFor="ig-mode-ai" className="cursor-pointer leading-none font-normal">
+												{t("sys.workbench.post.postModeAi")}
+											</Label>
+											<Text variant="caption" className="text-muted-foreground">
+												{t("sys.workbench.post.postModeAiHint")}
+											</Text>
+										</div>
 									</div>
-								</div>
-							</RadioGroup>
+								</RadioGroup>
+							</div>
 						</div>
 
 						{igPostCommentsMode === "self" ? (
@@ -957,6 +999,7 @@ export default function Workbench() {
 							refreshLabel={t("sys.workbench.shared.refreshAccounts")}
 						/>
 						<Button
+							className="w-full sm:w-auto"
 							disabled={
 								!postUrl.trim() ||
 								postStreaming ||
@@ -1162,84 +1205,106 @@ export default function Workbench() {
 						platform="Facebook"
 						intent={t("sys.workbench.intent.discovery")}
 					>
-						<div className="space-y-2">
-							<Label htmlFor="fbus-kw">{t("sys.workbench.facebookSearch.keywordsLabel")}</Label>
-							<Textarea
-								id="fbus-kw"
-								className="min-h-[88px] font-mono text-sm"
-								value={fbUnifiedKeywordsText}
-								onChange={(event) => setFbUnifiedKeywordsText(event.target.value)}
+						<div className="flex flex-col gap-4">
+							<MultiValueChipInput
+								className="min-w-0"
+								id="fbus-keywords"
+								label={t("sys.workbench.facebookSearch.keywordsLabel")}
+								hint={t("sys.workbench.facebookSearch.chipCommitHint")}
+								values={fbUnifiedKeywords}
+								onChange={setFbUnifiedKeywords}
 								placeholder={t("sys.workbench.facebookSearch.keywordsPlaceholder")}
-							/>
-						</div>
-						<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-							<div className="space-y-2">
-								<Label htmlFor="fbus-type">{t("sys.workbench.facebookSearch.searchTypeLabel")}</Label>
-								<Select
-									value={fbUnifiedSearchType}
-									onValueChange={(v) => setFbUnifiedSearchType(v as FacebookUnifiedSearchType)}
-								>
-									<SelectTrigger id="fbus-type">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="account">{t("sys.workbench.facebookSearch.typeAccount")}</SelectItem>
-										<SelectItem value="url">{t("sys.workbench.facebookSearch.typeUrl")}</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="fbus-mp">{t("sys.workbench.facebookSearch.maxPostsLabel")}</Label>
-								<Input
-									id="fbus-mp"
-									type="number"
-									value={optionalFiniteNumberDisplay(fbUnifiedMaxPosts)}
-									onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setFbUnifiedMaxPosts)}
-								/>
-							</div>
-							<PeriodHoursPresetSelect
-								id="fbus-ph"
-								label={t("sys.workbench.facebookSearch.periodHoursLabel")}
-								value={fbUnifiedPeriodHours}
-								onHoursChange={setFbUnifiedPeriodHours}
 								disabled={fbUnifiedSearchStreaming}
+								removeItemAriaLabel={(value) => t("sys.workbench.facebookSearch.removeChipAria", { value })}
 							/>
-							<div className="space-y-2 sm:col-span-2">
-								<Label htmlFor="fbus-lang">{t("sys.workbench.facebookSearch.languageLabel")}</Label>
-								<Input
-									id="fbus-lang"
-									value={fbUnifiedLanguage}
-									onChange={(event) => setFbUnifiedLanguage(event.target.value)}
-									placeholder={t("sys.workbench.facebookSearch.languagePlaceholder")}
-								/>
+							<div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-5">
+								<div className="space-y-2">
+									<Label htmlFor="fbus-type">{t("sys.workbench.facebookSearch.searchTypeLabel")}</Label>
+									<Select
+										disabled={fbUnifiedSearchStreaming}
+										value={fbUnifiedSearchType}
+										onValueChange={(v) => setFbUnifiedSearchType(v as FacebookUnifiedSearchType)}
+									>
+										<SelectTrigger id="fbus-type" className="h-9 w-full min-w-0">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="account">{t("sys.workbench.facebookSearch.typeAccount")}</SelectItem>
+											<SelectItem value="url">{t("sys.workbench.facebookSearch.typeUrl")}</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="fbus-mp">{t("sys.workbench.facebookSearch.maxPostsLabel")}</Label>
+									<Input
+										id="fbus-mp"
+										type="number"
+										className="h-9"
+										value={optionalFiniteNumberDisplay(fbUnifiedMaxPosts)}
+										onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setFbUnifiedMaxPosts)}
+										disabled={fbUnifiedSearchStreaming}
+									/>
+								</div>
 							</div>
+							<div className="grid gap-4 lg:grid-cols-2 lg:items-start lg:gap-5">
+								<PeriodHoursPresetSelect
+									id="fbus-ph"
+									label={t("sys.workbench.facebookSearch.periodHoursLabel")}
+									value={fbUnifiedPeriodHours}
+									onHoursChange={setFbUnifiedPeriodHours}
+									disabled={fbUnifiedSearchStreaming}
+								/>
+								<div className="space-y-2">
+									<Label htmlFor="fbus-lang-select">{t("sys.workbench.facebookSearch.languageLabel")}</Label>
+									<Select
+										disabled={fbUnifiedSearchStreaming}
+										value={fbUnifiedLanguageSelectValue}
+										onValueChange={(next) => setFbUnifiedLanguage(next === LANGUAGE_SELECT_OMIT ? "" : next)}
+									>
+										<SelectTrigger id="fbus-lang-select" className="h-9 w-full min-w-0">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent position="popper" className="w-[var(--radix-select-trigger-width)]">
+											<SelectItem value={LANGUAGE_SELECT_OMIT}>
+												{t("sys.telegramSearch.languageOption.omit")}
+											</SelectItem>
+											{COMMENT_API_LANGUAGE_CODES.map((code) => (
+												<SelectItem key={code} value={code}>
+													{t(`sys.telegramSearch.languageOption.${code}`)}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+							</div>
+							<Button
+								className="w-full sm:w-auto"
+								disabled={fbUnifiedKeywords.length === 0 || fbUnifiedSearchStreaming}
+								onClick={runFacebookUnifiedSearch}
+							>
+								{fbUnifiedSearchStreaming
+									? t("sys.workbench.facebookSearch.running")
+									: t("sys.workbench.facebookSearch.run")}
+							</Button>
+							<SearchStreamProgress
+								active={fbUnifiedSearchStreaming}
+								storageKey="workbench-fb-unified-search"
+								steps={fbUnifiedSearchStreamSteps}
+								title={t("sys.workbench.facebookSearch.streamProgressTitle")}
+								subtitle={t("sys.workbench.facebookSearch.streamProgressSubtitle")}
+								waitingText={t("sys.workbench.facebookSearch.streamProgressWaiting")}
+								runningLabel={t("sys.workbench.facebookSearch.running")}
+							/>
+							<ApiResultView
+								value={
+									fbUnifiedSearchData !== undefined
+										? fbUnifiedSearchData
+										: fbUnifiedSearchError !== null
+											? fbUnifiedSearchError
+											: undefined
+								}
+							/>
 						</div>
-						<Button
-							disabled={linesToArray(fbUnifiedKeywordsText).length === 0 || fbUnifiedSearchStreaming}
-							onClick={runFacebookUnifiedSearch}
-						>
-							{fbUnifiedSearchStreaming
-								? t("sys.workbench.facebookSearch.running")
-								: t("sys.workbench.facebookSearch.run")}
-						</Button>
-						<SearchStreamProgress
-							active={fbUnifiedSearchStreaming}
-							storageKey="workbench-fb-unified-search"
-							steps={fbUnifiedSearchStreamSteps}
-							title={t("sys.workbench.facebookSearch.streamProgressTitle")}
-							subtitle={t("sys.workbench.facebookSearch.streamProgressSubtitle")}
-							waitingText={t("sys.workbench.facebookSearch.streamProgressWaiting")}
-							runningLabel={t("sys.workbench.facebookSearch.running")}
-						/>
-						<ApiResultView
-							value={
-								fbUnifiedSearchData !== undefined
-									? fbUnifiedSearchData
-									: fbUnifiedSearchError !== null
-										? fbUnifiedSearchError
-										: undefined
-							}
-						/>
 					</WorkflowShell>
 				</TabsContent>
 
@@ -1319,45 +1384,49 @@ export default function Workbench() {
 						platform="Facebook"
 						intent={t("sys.workbench.intent.action")}
 					>
-						<div className="space-y-2">
-							<Label htmlFor="fbposturl">{t("sys.workbench.facebook.postUrlLabel")}</Label>
-							<Input
-								id="fbposturl"
-								value={fbPostCommentsUrl}
-								onChange={(event) => setFbPostCommentsUrl(event.target.value)}
-							/>
+						<div className="rounded-xl border border-border/80 bg-muted/25 px-4 py-3">
+							<div className="space-y-2">
+								<Label htmlFor="fbposturl">{t("sys.workbench.facebook.postUrlLabel")}</Label>
+								<Input
+									id="fbposturl"
+									value={fbPostCommentsUrl}
+									onChange={(event) => setFbPostCommentsUrl(event.target.value)}
+								/>
+							</div>
 						</div>
 
-						<div className="space-y-3">
-							<Label className="text-sm font-medium">{t("sys.workbench.facebook.postModeLabel")}</Label>
-							<RadioGroup
-								value={fbPostCommentsMode}
-								onValueChange={(value) => setFbPostCommentsMode(value as FbPostCommentsMode)}
-								className="grid gap-3 sm:grid-cols-2"
-							>
-								<div className="flex items-start gap-3 rounded-lg border border-border p-3">
-									<RadioGroupItem value="manual" id="fb-mode-manual" className="mt-0.5" />
-									<div className="grid gap-1">
-										<Label htmlFor="fb-mode-manual" className="cursor-pointer leading-none font-normal">
-											{t("sys.workbench.facebook.postModeManual")}
-										</Label>
-										<Text variant="caption" className="text-muted-foreground">
-											{t("sys.workbench.facebook.postModeManualHint")}
-										</Text>
+						<div className="rounded-xl border border-border/80 bg-muted/25 px-4 py-3">
+							<div className="space-y-3">
+								<Label className="text-sm font-medium">{t("sys.workbench.facebook.postModeLabel")}</Label>
+								<RadioGroup
+									value={fbPostCommentsMode}
+									onValueChange={(value) => setFbPostCommentsMode(value as FbPostCommentsMode)}
+									className="grid gap-3 sm:grid-cols-2"
+								>
+									<div className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/50 p-3">
+										<RadioGroupItem value="manual" id="fb-mode-manual" className="mt-0.5" />
+										<div className="grid gap-1">
+											<Label htmlFor="fb-mode-manual" className="cursor-pointer leading-none font-normal">
+												{t("sys.workbench.facebook.postModeManual")}
+											</Label>
+											<Text variant="caption" className="text-muted-foreground">
+												{t("sys.workbench.facebook.postModeManualHint")}
+											</Text>
+										</div>
 									</div>
-								</div>
-								<div className="flex items-start gap-3 rounded-lg border border-border p-3">
-									<RadioGroupItem value="auto" id="fb-mode-auto" className="mt-0.5" />
-									<div className="grid gap-1">
-										<Label htmlFor="fb-mode-auto" className="cursor-pointer leading-none font-normal">
-											{t("sys.workbench.facebook.postModeAuto")}
-										</Label>
-										<Text variant="caption" className="text-muted-foreground">
-											{t("sys.workbench.facebook.postModeAutoHint")}
-										</Text>
+									<div className="flex items-start gap-3 rounded-lg border border-border/60 bg-background/50 p-3">
+										<RadioGroupItem value="auto" id="fb-mode-auto" className="mt-0.5" />
+										<div className="grid gap-1">
+											<Label htmlFor="fb-mode-auto" className="cursor-pointer leading-none font-normal">
+												{t("sys.workbench.facebook.postModeAuto")}
+											</Label>
+											<Text variant="caption" className="text-muted-foreground">
+												{t("sys.workbench.facebook.postModeAutoHint")}
+											</Text>
+										</div>
 									</div>
-								</div>
-							</RadioGroup>
+								</RadioGroup>
+							</div>
 						</div>
 
 						{fbPostCommentsMode === "manual" ? (
@@ -1409,6 +1478,7 @@ export default function Workbench() {
 							/>
 						</div>
 						<Button
+							className="w-full sm:w-auto"
 							disabled={
 								!fbPostCommentsUrl.trim() ||
 								fbPostStreaming ||
