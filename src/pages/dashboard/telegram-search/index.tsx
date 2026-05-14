@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { commentHealthService, commentTelegramService } from "@/api/services/comment";
 import { ApiResultView } from "@/components/comment-api/api-result";
 import { WorkflowShell } from "@/components/comment-api/executive-ui";
@@ -24,9 +25,16 @@ import {
 	optionalFiniteNumberDisplay,
 	setOptionalFiniteNumberFromInput,
 } from "@/utils/optional-number-input";
+import {
+	clearWorkflowSnapshot,
+	errorToCached,
+	readWorkflowSnapshot,
+	WORKFLOW_CACHE_VERSION,
+	writeWorkflowSnapshot,
+	WORKFLOW_SNAPSHOT_IDS,
+} from "@/utils/workflow-session-cache";
 
-const CACHE_TIME = 1000 * 60 * 30;
-
+const TG_CACHE_NS = WORKFLOW_SNAPSHOT_IDS.telegramSearch;
 const TELEGRAM_SEARCH_MAX_PER_HIT = 150;
 const TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST = 25;
 const TELEGRAM_DEFAULT_MIN_NEGATIVE_COMMENT_RATIO = 0.5;
@@ -47,31 +55,72 @@ function normalizeTelegramChannelSegment(segment: string): string {
 
 export default function TelegramSearchPage() {
 	const { t } = useTranslation();
+	const persisted = readWorkflowSnapshot<TelegramSearchRequest>(TG_CACHE_NS);
+
 	const [healthEnabled, setHealthEnabled] = useState(true);
 	const healthQuery = useQuery({
 		queryKey: ["comment-api", "health"],
 		queryFn: () => commentHealthService.health(),
 		enabled: healthEnabled,
 		refetchInterval: 60_000,
-		staleTime: CACHE_TIME,
+		staleTime: 1000 * 60 * 30,
 	});
 
-	const [keywords, setKeywords] = useState<string[]>([]);
-	const [channels, setChannels] = useState<string[]>([]);
-	const [periodHours, setPeriodHours] = useState(168);
-	const [language, setLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
-	const [includeComments, setIncludeComments] = useState(false);
-	const [maxCommentsPerPost, setMaxCommentsPerPost] = useState<OptionalFiniteNumber>(
-		TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST,
-	);
+	const [keywords, setKeywords] = useState<string[]>(() => persisted?.inputs.keywords ?? []);
+	const [channels, setChannels] = useState<string[]>(() => persisted?.inputs.channels ?? []);
+	const [periodHours, setPeriodHours] = useState(() => persisted?.inputs.period_hours ?? 168);
+	const [language, setLanguage] = useState(() => persisted?.inputs.language ?? DEFAULT_COMMENT_API_LANGUAGE_HINT);
+	const [includeComments, setIncludeComments] = useState(() => persisted?.inputs.include_comments === true);
+	const [maxCommentsPerPost, setMaxCommentsPerPost] = useState<OptionalFiniteNumber>(() => {
+		const m = persisted?.inputs.max_comments_per_post;
+		return typeof m === "number" ? m : TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST;
+	});
 	const abortRef = useRef<AbortController | null>(null);
+	const mergedPayloadRef = useRef<unknown | undefined>(persisted?.result ?? undefined);
+	const streamErrorRef = useRef<Error | null>(null);
 	const streamStepIdRef = useRef(0);
 	const [streamSteps, setStreamSteps] = useState<SearchStreamStepRow[]>([]);
-	const [resultData, setResultData] = useState<unknown>();
+	const [resultData, setResultData] = useState<unknown | undefined>(() => persisted?.result ?? undefined);
 	const [streaming, setStreaming] = useState(false);
-	const [error, setError] = useState<Error | null>(null);
-	/** Hides the dashed “run workflow above” card after the user has started a search (avoids flash when `streaming` clears before merged data exists). */
-	const [hasStartedTelegramSearch, setHasStartedTelegramSearch] = useState(false);
+	const [error, setError] = useState<Error | null>(() => {
+		if (!persisted?.error) return null;
+		const e = new Error(persisted.error.message);
+		e.name = persisted.error.name;
+		return e;
+	});
+	const [hasStartedTelegramSearch, setHasStartedTelegramSearch] = useState(() =>
+		Boolean(persisted && (persisted.result != null || persisted.error != null)),
+	);
+
+	const persistOutcome = (body: TelegramSearchRequest, payload: unknown | undefined, streamErr: Error | null) => {
+		const snapshot = {
+			version: WORKFLOW_CACHE_VERSION as typeof WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs: body,
+			result: streamErr !== null ? null : (payload ?? null),
+			error: errorToCached(streamErr),
+		};
+		const w = writeWorkflowSnapshot(TG_CACHE_NS, snapshot);
+		if (w === "quota") {
+			toast.error(t("sys.workflowCache.quotaExceeded"));
+		}
+	};
+
+	const handleClearPersistedOutcome = () => {
+		clearWorkflowSnapshot(TG_CACHE_NS);
+		mergedPayloadRef.current = undefined;
+		streamErrorRef.current = null;
+		setKeywords([]);
+		setChannels([]);
+		setPeriodHours(168);
+		setLanguage(DEFAULT_COMMENT_API_LANGUAGE_HINT);
+		setIncludeComments(false);
+		setMaxCommentsPerPost(TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST);
+		setStreamSteps([]);
+		setResultData(undefined);
+		setError(null);
+		setHasStartedTelegramSearch(false);
+	};
 
 	useEffect(() => {
 		return () => {
@@ -111,6 +160,7 @@ export default function TelegramSearchPage() {
 		abortRef.current = ac;
 		setError(null);
 		setResultData(undefined);
+		streamErrorRef.current = null;
 		setHasStartedTelegramSearch(true);
 		streamStepIdRef.current = 0;
 		setStreamSteps([]);
@@ -126,15 +176,22 @@ export default function TelegramSearchPage() {
 						setStreamSteps((prev) => [...prev, { id, ...progressStep }]);
 						return;
 					}
-					setResultData((prev: unknown) => mergeSearchStreamChunk(prev, chunk));
+					setResultData((prev: unknown) => {
+						const next = mergeSearchStreamChunk(prev, chunk);
+						mergedPayloadRef.current = next;
+						return next;
+					});
 				},
 			})
 			.catch((err: unknown) => {
-				setError(err instanceof Error ? err : new Error(String(err)));
+				const normalized = err instanceof Error ? err : new Error(String(err));
+				streamErrorRef.current = normalized;
+				setError(normalized);
 			})
 			.finally(() => {
 				if (abortRef.current === ac) {
 					setStreaming(false);
+					persistOutcome(body, mergedPayloadRef.current, streamErrorRef.current);
 					setStreamSteps([]);
 				}
 			});
@@ -291,9 +348,14 @@ export default function TelegramSearchPage() {
 						</div>
 					</div>
 				</div>
-				<Button className="w-full sm:w-auto" disabled={!canRun} onClick={runSearch}>
-					{streaming ? t("sys.telegramSearch.running") : t("sys.telegramSearch.run")}
-				</Button>
+				<div className="flex flex-wrap gap-2">
+					<Button className="w-full sm:w-auto" disabled={!canRun} onClick={runSearch}>
+						{streaming ? t("sys.telegramSearch.running") : t("sys.telegramSearch.run")}
+					</Button>
+					<Button type="button" variant="outline" disabled={streaming} onClick={handleClearPersistedOutcome}>
+						{t("sys.workflowCache.clearOutcome")}
+					</Button>
+				</div>
 				<SearchStreamProgress
 					active={streaming}
 					storageKey="telegram-search-stream"

@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
+import { toast } from "sonner";
 import {
 	commentAccountsService,
 	commentCampaignService,
@@ -60,6 +61,14 @@ import {
 	optionalFiniteNumberDisplay,
 	setOptionalFiniteNumberFromInput,
 } from "@/utils/optional-number-input";
+import {
+	clearWorkflowSnapshot,
+	errorToCached,
+	readWorkflowSnapshot,
+	WORKFLOW_CACHE_VERSION,
+	WORKFLOW_SNAPSHOT_IDS,
+	writeWorkflowSnapshot,
+} from "@/utils/workflow-session-cache";
 
 const CACHE_TIME = 1000 * 60 * 30;
 
@@ -115,6 +124,32 @@ function toggleAccount(accounts: string[], account: string, checked: boolean): s
 	if (checked) return accounts.includes(account) ? accounts : [...accounts, account];
 	return accounts.filter((item) => item !== account);
 }
+
+type WbIgPostPersistInputs = {
+	mode: IgPostCommentsMode;
+	postUrl: string;
+	commentsText: string;
+	postSelectedAccounts: string[];
+	periodSeconds: OptionalFiniteNumber;
+	igGenerateTone: CommentGenerationTone;
+	igGenerateCount: OptionalFiniteNumber;
+	igGenerateLanguage: string;
+};
+
+type WbAutoReplyPersistInputs = {
+	postUrl: string;
+	selectedAccounts: string[];
+	periodSeconds: OptionalFiniteNumber;
+};
+
+type WbFbPostPersistInputs = {
+	mode: FbPostCommentsMode;
+	url: string;
+	commentsText: string;
+	tone: CommentGenerationTone;
+	generateCount: OptionalFiniteNumber;
+	periodSeconds: OptionalFiniteNumber;
+};
 
 interface AccountMultiSelectProps {
 	accounts: AccountOption[];
@@ -220,36 +255,107 @@ export default function Workbench() {
 		queryFn: () => commentHealthService.health(),
 		enabled: healthEnabled,
 		refetchInterval: 60_000,
+		staleTime: CACHE_TIME,
 	});
 
-	const [searchKeywords, setSearchKeywords] = useState<string[]>([]);
-	const [searchMaxPostsPerAccount, setSearchMaxPostsPerAccount] = useState<OptionalFiniteNumber>(5);
-	const [searchType, setSearchType] = useState<InstagramUnifiedSearchType>("account");
-	const [searchLanguage, setSearchLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
+	const workflowSnaps = useMemo(
+		() => ({
+			igSearch: readWorkflowSnapshot<InstagramUnifiedSearchRequest>(WORKFLOW_SNAPSHOT_IDS.wbInstagramSearch),
+			fbUnified: readWorkflowSnapshot<FacebookUnifiedSearchRequest>(WORKFLOW_SNAPSHOT_IDS.wbFacebookUnifiedSearch),
+			igPost: readWorkflowSnapshot<WbIgPostPersistInputs>(WORKFLOW_SNAPSHOT_IDS.wbInstagramPost),
+			autoReply: readWorkflowSnapshot<WbAutoReplyPersistInputs>(WORKFLOW_SNAPSHOT_IDS.wbAutoReply),
+			fbAnalyze: readWorkflowSnapshot<FacebookAccountAnalyzeRequest>(WORKFLOW_SNAPSHOT_IDS.wbFacebookAnalyze),
+			fbFetch: readWorkflowSnapshot<FacebookFetchRequest>(WORKFLOW_SNAPSHOT_IDS.wbFacebookFetch),
+			fbPostUi: readWorkflowSnapshot<WbFbPostPersistInputs>(WORKFLOW_SNAPSHOT_IDS.wbFacebookPost),
+			campaign: readWorkflowSnapshot<CampaignRequest>(WORKFLOW_SNAPSHOT_IDS.wbCampaign),
+		}),
+		[],
+	);
+
+	const [searchKeywords, setSearchKeywords] = useState<string[]>(() => workflowSnaps.igSearch?.inputs.keywords ?? []);
+	const [searchMaxPostsPerAccount, setSearchMaxPostsPerAccount] = useState<OptionalFiniteNumber>(() => {
+		const m = workflowSnaps.igSearch?.inputs.max_posts_per_account;
+		return typeof m === "number" ? m : 5;
+	});
+	const [searchType, setSearchType] = useState<InstagramUnifiedSearchType>(
+		() => workflowSnaps.igSearch?.inputs.type ?? "account",
+	);
+	const [searchLanguage, setSearchLanguage] = useState(
+		() => workflowSnaps.igSearch?.inputs.language ?? DEFAULT_COMMENT_API_LANGUAGE_HINT,
+	);
 	const searchAbortRef = useRef<AbortController | null>(null);
+	const searchMergedRef = useRef<unknown | undefined>(workflowSnaps.igSearch?.result ?? undefined);
+	const searchStreamErrRef = useRef<Error | null>(null);
 	const searchStreamStepIdRef = useRef(0);
 	const [searchStreamSteps, setSearchStreamSteps] = useState<SearchStreamStepRow[]>([]);
-	const [searchData, setSearchData] = useState<unknown>();
+	const [searchData, setSearchData] = useState<unknown>(() => workflowSnaps.igSearch?.result ?? undefined);
 	const [searchStreaming, setSearchStreaming] = useState(false);
-	const [searchError, setSearchError] = useState<Error | null>(null);
+	const [searchError, setSearchError] = useState<Error | null>(() => {
+		const eSnap = workflowSnaps.igSearch?.error;
+		if (!eSnap) return null;
+		const er = new Error(eSnap.message);
+		er.name = eSnap.name;
+		return er;
+	});
 
+	const persistIgSearchSnapshot = (
+		body: InstagramUnifiedSearchRequest,
+		payload: unknown | undefined,
+		streamErr: Error | null,
+	) => {
+		const snapshot = {
+			version: WORKFLOW_CACHE_VERSION as typeof WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs: body,
+			result: streamErr !== null ? null : (payload ?? null),
+			error: errorToCached(streamErr),
+		};
+		if (writeWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbInstagramSearch, snapshot) === "quota") {
+			toast.error(t("sys.workflowCache.quotaExceeded"));
+		}
+	};
+
+	const handleClearIgSearchPersisted = () => {
+		clearWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbInstagramSearch);
+		searchMergedRef.current = undefined;
+		searchStreamErrRef.current = null;
+		setSearchKeywords([]);
+		setSearchMaxPostsPerAccount(5);
+		setSearchType("account");
+		setSearchLanguage(DEFAULT_COMMENT_API_LANGUAGE_HINT);
+		setSearchStreamSteps([]);
+		setSearchData(undefined);
+		setSearchError(null);
+	};
 	const autoReplyAbortRef = useRef<AbortController | null>(null);
 	const autoReplyStreamStepIdRef = useRef(0);
+	const autoReplyMergedRef = useRef<unknown | undefined>(workflowSnaps.autoReply?.result ?? undefined);
+	const autoReplyStreamErrRef = useRef<Error | null>(null);
 
 	const fbAnalyzeAbortRef = useRef<AbortController | null>(null);
 	const fbAnalyzeStreamStepIdRef = useRef(0);
+	const fbAnalyzeMergedRef = useRef<unknown | undefined>(workflowSnaps.fbAnalyze?.result ?? undefined);
+	const fbAnalyzeStreamErrRef = useRef<Error | null>(null);
 
 	const fbFetchAbortRef = useRef<AbortController | null>(null);
 	const fbFetchStreamStepIdRef = useRef(0);
+	const fbFetchMergedRef = useRef<unknown | undefined>(workflowSnaps.fbFetch?.result ?? undefined);
+	const fbFetchStreamErrRef = useRef<Error | null>(null);
 
 	const fbPostAbortRef = useRef<AbortController | null>(null);
 	const fbPostStreamStepIdRef = useRef(0);
+	const fbPostMergedRef = useRef<unknown | undefined>(workflowSnaps.fbPostUi?.result ?? undefined);
+	const fbPostStreamErrRef = useRef<Error | null>(null);
 
 	const fbUnifiedSearchAbortRef = useRef<AbortController | null>(null);
 	const fbUnifiedSearchStreamStepIdRef = useRef(0);
+	const fbUnifiedMergedRef = useRef<unknown | undefined>(workflowSnaps.fbUnified?.result ?? undefined);
+	const fbUnifiedStreamErrRef = useRef<Error | null>(null);
 
 	const igPostAbortRef = useRef<AbortController | null>(null);
 	const igPostStreamStepIdRef = useRef(0);
+	const igPostMergedRef = useRef<unknown | undefined>(workflowSnaps.igPost?.result ?? undefined);
+	const igPostStreamErrRef = useRef<Error | null>(null);
 
 	useEffect(() => {
 		return () => {
@@ -287,6 +393,7 @@ export default function Workbench() {
 		const ac = new AbortController();
 		searchAbortRef.current = ac;
 		setSearchError(null);
+		searchStreamErrRef.current = null;
 		setSearchData(undefined);
 		searchStreamStepIdRef.current = 0;
 		setSearchStreamSteps([]);
@@ -305,7 +412,11 @@ export default function Workbench() {
 					if (hasSearchResultPayload(chunk)) {
 						hasResultChunk = true;
 					}
-					setSearchData((prev: unknown) => mergeSearchStreamChunk(prev, chunk));
+					setSearchData((prev: unknown) => {
+						const next = mergeSearchStreamChunk(prev, chunk);
+						searchMergedRef.current = next;
+						return next;
+					});
 				},
 			})
 			.then(async () => {
@@ -315,28 +426,81 @@ export default function Workbench() {
 				const fallbackResult = await commentSearchService.search(body);
 				if (searchAbortRef.current === ac) {
 					setSearchData(fallbackResult);
+					searchMergedRef.current = fallbackResult;
 				}
 			})
 			.catch((error: unknown) => {
-				setSearchError(error instanceof Error ? error : new Error(String(error)));
+				const normalized = error instanceof Error ? error : new Error(String(error));
+				searchStreamErrRef.current = normalized;
+				setSearchError(normalized);
 			})
 			.finally(() => {
 				if (searchAbortRef.current === ac) {
 					setSearchStreaming(false);
+					persistIgSearchSnapshot(body, searchMergedRef.current, searchStreamErrRef.current);
 					setSearchStreamSteps([]);
 				}
 			});
 	};
 
-	const [fbUnifiedKeywords, setFbUnifiedKeywords] = useState<string[]>([]);
-	const [fbUnifiedSearchType, setFbUnifiedSearchType] = useState<FacebookUnifiedSearchType>("account");
-	const [fbUnifiedMaxPosts, setFbUnifiedMaxPosts] = useState<OptionalFiniteNumber>(5);
-	const [fbUnifiedPeriodHours, setFbUnifiedPeriodHours] = useState(168);
-	const [fbUnifiedLanguage, setFbUnifiedLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
+	const [fbUnifiedKeywords, setFbUnifiedKeywords] = useState<string[]>(
+		() => workflowSnaps.fbUnified?.inputs.keywords ?? [],
+	);
+	const [fbUnifiedSearchType, setFbUnifiedSearchType] = useState<FacebookUnifiedSearchType>(
+		() => workflowSnaps.fbUnified?.inputs.type ?? "account",
+	);
+	const [fbUnifiedMaxPosts, setFbUnifiedMaxPosts] = useState<OptionalFiniteNumber>(() =>
+		finiteNumberOr(workflowSnaps.fbUnified?.inputs.max_posts ?? 5, 5),
+	);
+	const [fbUnifiedPeriodHours, setFbUnifiedPeriodHours] = useState(
+		() => workflowSnaps.fbUnified?.inputs.period_hours ?? 168,
+	);
+	const [fbUnifiedLanguage, setFbUnifiedLanguage] = useState(
+		() => workflowSnaps.fbUnified?.inputs.language ?? DEFAULT_COMMENT_API_LANGUAGE_HINT,
+	);
 	const [fbUnifiedSearchStreamSteps, setFbUnifiedSearchStreamSteps] = useState<SearchStreamStepRow[]>([]);
-	const [fbUnifiedSearchData, setFbUnifiedSearchData] = useState<unknown>();
+	const [fbUnifiedSearchData, setFbUnifiedSearchData] = useState<unknown>(
+		() => workflowSnaps.fbUnified?.result ?? undefined,
+	);
 	const [fbUnifiedSearchStreaming, setFbUnifiedSearchStreaming] = useState(false);
-	const [fbUnifiedSearchError, setFbUnifiedSearchError] = useState<Error | null>(null);
+	const [fbUnifiedSearchError, setFbUnifiedSearchError] = useState<Error | null>(() => {
+		const er = workflowSnaps.fbUnified?.error;
+		if (!er) return null;
+		const err = new Error(er.message);
+		err.name = er.name;
+		return err;
+	});
+
+	const persistFbUnifiedSnapshot = (
+		body: FacebookUnifiedSearchRequest,
+		payload: unknown | undefined,
+		streamErr: Error | null,
+	) => {
+		const snapshot = {
+			version: WORKFLOW_CACHE_VERSION as typeof WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs: body,
+			result: streamErr !== null ? null : (payload ?? null),
+			error: errorToCached(streamErr),
+		};
+		if (writeWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbFacebookUnifiedSearch, snapshot) === "quota") {
+			toast.error(t("sys.workflowCache.quotaExceeded"));
+		}
+	};
+
+	const handleClearFbUnifiedPersisted = () => {
+		clearWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbFacebookUnifiedSearch);
+		fbUnifiedMergedRef.current = undefined;
+		fbUnifiedStreamErrRef.current = null;
+		setFbUnifiedKeywords([]);
+		setFbUnifiedSearchType("account");
+		setFbUnifiedMaxPosts(5);
+		setFbUnifiedPeriodHours(168);
+		setFbUnifiedLanguage(DEFAULT_COMMENT_API_LANGUAGE_HINT);
+		setFbUnifiedSearchStreamSteps([]);
+		setFbUnifiedSearchData(undefined);
+		setFbUnifiedSearchError(null);
+	};
 
 	const runFacebookUnifiedSearch = () => {
 		const keywords = fbUnifiedKeywords;
@@ -352,6 +516,7 @@ export default function Workbench() {
 		const ac = new AbortController();
 		fbUnifiedSearchAbortRef.current = ac;
 		setFbUnifiedSearchError(null);
+		fbUnifiedStreamErrRef.current = null;
 		setFbUnifiedSearchData(undefined);
 		fbUnifiedSearchStreamStepIdRef.current = 0;
 		setFbUnifiedSearchStreamSteps([]);
@@ -370,7 +535,11 @@ export default function Workbench() {
 					if (hasSearchResultPayload(chunk)) {
 						hasResultChunk = true;
 					}
-					setFbUnifiedSearchData((prev: unknown) => mergeSearchStreamChunk(prev, chunk));
+					setFbUnifiedSearchData((prev: unknown) => {
+						const next = mergeSearchStreamChunk(prev, chunk);
+						fbUnifiedMergedRef.current = next;
+						return next;
+					});
 				},
 			})
 			.then(async () => {
@@ -380,79 +549,331 @@ export default function Workbench() {
 				const fallbackResult = await commentFacebookService.search(body);
 				if (fbUnifiedSearchAbortRef.current === ac) {
 					setFbUnifiedSearchData(fallbackResult);
+					fbUnifiedMergedRef.current = fallbackResult;
 				}
 			})
 			.catch((error: unknown) => {
-				setFbUnifiedSearchError(error instanceof Error ? error : new Error(String(error)));
+				const normalized = error instanceof Error ? error : new Error(String(error));
+				fbUnifiedStreamErrRef.current = normalized;
+				setFbUnifiedSearchError(normalized);
 			})
 			.finally(() => {
 				if (fbUnifiedSearchAbortRef.current === ac) {
 					setFbUnifiedSearchStreaming(false);
+					persistFbUnifiedSnapshot(body, fbUnifiedMergedRef.current, fbUnifiedStreamErrRef.current);
 					setFbUnifiedSearchStreamSteps([]);
 				}
 			});
 	};
 
-	const [postUrl, setPostUrl] = useState("");
-	const [commentsText, setCommentsText] = useState("");
-	const [postSelectedAccounts, setPostSelectedAccounts] = useState<string[]>([]);
-	const [periodSeconds, setPeriodSeconds] = useState<OptionalFiniteNumber>(30);
-	const [igPostCommentsMode, setIgPostCommentsMode] = useState<IgPostCommentsMode>("self");
-	const [igGenerateTone, setIgGenerateTone] = useState<CommentGenerationTone>("positive");
-	const [igGenerateCount, setIgGenerateCount] = useState<OptionalFiniteNumber>(3);
-	const [igGenerateLanguage, setIgGenerateLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
+	const [postUrl, setPostUrl] = useState(() => workflowSnaps.igPost?.inputs.postUrl ?? "");
+	const [commentsText, setCommentsText] = useState(() => workflowSnaps.igPost?.inputs.commentsText ?? "");
+	const [postSelectedAccounts, setPostSelectedAccounts] = useState<string[]>(
+		() => workflowSnaps.igPost?.inputs.postSelectedAccounts ?? [],
+	);
+	const [periodSeconds, setPeriodSeconds] = useState<OptionalFiniteNumber>(
+		() => workflowSnaps.igPost?.inputs.periodSeconds ?? 30,
+	);
+	const [igPostCommentsMode, setIgPostCommentsMode] = useState<IgPostCommentsMode>(
+		() => workflowSnaps.igPost?.inputs.mode ?? "self",
+	);
+	const [igGenerateTone, setIgGenerateTone] = useState<CommentGenerationTone>(
+		() => workflowSnaps.igPost?.inputs.igGenerateTone ?? "positive",
+	);
+	const [igGenerateCount, setIgGenerateCount] = useState<OptionalFiniteNumber>(
+		() => workflowSnaps.igPost?.inputs.igGenerateCount ?? 3,
+	);
+	const [igGenerateLanguage, setIgGenerateLanguage] = useState(
+		() => workflowSnaps.igPost?.inputs.igGenerateLanguage ?? DEFAULT_COMMENT_API_LANGUAGE_HINT,
+	);
 	const [postStreamSteps, setPostStreamSteps] = useState<SearchStreamStepRow[]>([]);
-	const [postStreamData, setPostStreamData] = useState<unknown>();
+	const [postStreamData, setPostStreamData] = useState<unknown>(() => workflowSnaps.igPost?.result ?? undefined);
 	const [postStreaming, setPostStreaming] = useState(false);
-	const [postStreamError, setPostStreamError] = useState<Error | null>(null);
+	const [postStreamError, setPostStreamError] = useState<Error | null>(() => {
+		const er = workflowSnaps.igPost?.error;
+		if (!er) return null;
+		const err = new Error(er.message);
+		err.name = er.name;
+		return err;
+	});
 
-	const [autoReplyPostUrl, setAutoReplyPostUrl] = useState("");
-	const [autoReplySelectedAccounts, setAutoReplySelectedAccounts] = useState<string[]>([]);
-	const [autoReplyPeriodSeconds, setAutoReplyPeriodSeconds] = useState<OptionalFiniteNumber>(30);
+	const persistIgPostSnapshot = (inputs: WbIgPostPersistInputs, streamErr: Error | null) => {
+		const snapshot = {
+			version: WORKFLOW_CACHE_VERSION as typeof WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs,
+			result: streamErr !== null ? null : (igPostMergedRef.current ?? null),
+			error: errorToCached(streamErr),
+		};
+		if (writeWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbInstagramPost, snapshot) === "quota") {
+			toast.error(t("sys.workflowCache.quotaExceeded"));
+		}
+	};
+
+	const handleClearIgPostPersisted = () => {
+		clearWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbInstagramPost);
+		igPostMergedRef.current = undefined;
+		igPostStreamErrRef.current = null;
+		setPostUrl("");
+		setCommentsText("");
+		setPostSelectedAccounts([]);
+		setPeriodSeconds(30);
+		setIgPostCommentsMode("self");
+		setIgGenerateTone("positive");
+		setIgGenerateCount(3);
+		setIgGenerateLanguage(DEFAULT_COMMENT_API_LANGUAGE_HINT);
+		setPostStreamSteps([]);
+		setPostStreamData(undefined);
+		setPostStreamError(null);
+	};
+
+	const [autoReplyPostUrl, setAutoReplyPostUrl] = useState(() => workflowSnaps.autoReply?.inputs.postUrl ?? "");
+	const [autoReplySelectedAccounts, setAutoReplySelectedAccounts] = useState<string[]>(
+		() => workflowSnaps.autoReply?.inputs.selectedAccounts ?? [],
+	);
+	const [autoReplyPeriodSeconds, setAutoReplyPeriodSeconds] = useState<OptionalFiniteNumber>(
+		() => workflowSnaps.autoReply?.inputs.periodSeconds ?? 30,
+	);
 	const [autoReplyStreamSteps, setAutoReplyStreamSteps] = useState<SearchStreamStepRow[]>([]);
-	const [autoReplyData, setAutoReplyData] = useState<unknown>();
+	const [autoReplyData, setAutoReplyData] = useState<unknown>(() => workflowSnaps.autoReply?.result ?? undefined);
 	const [autoReplyStreaming, setAutoReplyStreaming] = useState(false);
-	const [autoReplyError, setAutoReplyError] = useState<Error | null>(null);
+	const [autoReplyError, setAutoReplyError] = useState<Error | null>(() => {
+		const er = workflowSnaps.autoReply?.error;
+		if (!er) return null;
+		const err = new Error(er.message);
+		err.name = er.name;
+		return err;
+	});
 
-	const [campKeyword, setCampKeyword] = useState("");
-	const [campMaxPosts, setCampMaxPosts] = useState<OptionalFiniteNumber>(10);
-	const [campSelectedAccounts, setCampSelectedAccounts] = useState<string[]>([]);
-	const [campPeriodSeconds, setCampPeriodSeconds] = useState<OptionalFiniteNumber>(60);
-	const [campPeriodHours, setCampPeriodHours] = useState(24);
-	const [campSearchType, setCampSearchType] = useState("all");
-	const [campTone, setCampTone] = useState<CommentGenerationTone>("neutral");
-	const [campGenerateCount, setCampGenerateCount] = useState<OptionalFiniteNumber>(5);
-	const [campCommentsText, setCampCommentsText] = useState("");
+	const persistAutoReplySnapshot = (inputs: WbAutoReplyPersistInputs, streamErr: Error | null) => {
+		const snapshot = {
+			version: WORKFLOW_CACHE_VERSION as typeof WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs,
+			result: streamErr !== null ? null : (autoReplyMergedRef.current ?? null),
+			error: errorToCached(streamErr),
+		};
+		if (writeWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbAutoReply, snapshot) === "quota") {
+			toast.error(t("sys.workflowCache.quotaExceeded"));
+		}
+	};
+
+	const handleClearAutoReplyPersisted = () => {
+		clearWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbAutoReply);
+		autoReplyMergedRef.current = undefined;
+		autoReplyStreamErrRef.current = null;
+		setAutoReplyPostUrl("");
+		setAutoReplySelectedAccounts([]);
+		setAutoReplyPeriodSeconds(30);
+		setAutoReplyStreamSteps([]);
+		setAutoReplyData(undefined);
+		setAutoReplyError(null);
+	};
+
+	const [campKeyword, setCampKeyword] = useState(() => workflowSnaps.campaign?.inputs.keyword ?? "");
+	const [campMaxPosts, setCampMaxPosts] = useState<OptionalFiniteNumber>(() =>
+		finiteNumberOr(workflowSnaps.campaign?.inputs.max_posts ?? 10, 10),
+	);
+	const [campSelectedAccounts, setCampSelectedAccounts] = useState<string[]>(() => []);
+	const [campPeriodSeconds, setCampPeriodSeconds] = useState<OptionalFiniteNumber>(() =>
+		finiteNumberOr(workflowSnaps.campaign?.inputs.period_seconds ?? 60, 60),
+	);
+	const [campPeriodHours, setCampPeriodHours] = useState(() => workflowSnaps.campaign?.inputs.period_hours ?? 24);
+	const [campSearchType, setCampSearchType] = useState(() => workflowSnaps.campaign?.inputs.search_type ?? "all");
+	const [campTone, setCampTone] = useState<CommentGenerationTone>(
+		() => workflowSnaps.campaign?.inputs.tone ?? "neutral",
+	);
+	const [campGenerateCount, setCampGenerateCount] = useState<OptionalFiniteNumber>(() =>
+		finiteNumberOr(workflowSnaps.campaign?.inputs.generate_count ?? 5, 5),
+	);
+	const [campCommentsText, setCampCommentsText] = useState(() => {
+		const comments = workflowSnaps.campaign?.inputs.comments;
+		return Array.isArray(comments) ? comments.join("\n") : "";
+	});
+
+	const [campaignHydratedData, setCampaignHydratedData] = useState<unknown>(
+		() => workflowSnaps.campaign?.result ?? undefined,
+	);
+	const [campaignHydratedError, setCampaignHydratedError] = useState<Error | null>(() => {
+		const er = workflowSnaps.campaign?.error;
+		if (!er) return null;
+		const err = new Error(er.message);
+		err.name = er.name;
+		return err;
+	});
+
+	const [fbUsername, setFbUsername] = useState(() => workflowSnaps.fbAnalyze?.inputs.username ?? "");
+	const [fbMaxPosts, setFbMaxPosts] = useState<OptionalFiniteNumber>(() =>
+		finiteNumberOr(workflowSnaps.fbAnalyze?.inputs.max_posts ?? 1, 1),
+	);
+	const [fbAnalyzeStreamSteps, setFbAnalyzeStreamSteps] = useState<SearchStreamStepRow[]>([]);
+	const [fbAnalyzeData, setFbAnalyzeData] = useState<unknown>(() => workflowSnaps.fbAnalyze?.result ?? undefined);
+	const [fbAnalyzeStreaming, setFbAnalyzeStreaming] = useState(false);
+	const [fbAnalyzeError, setFbAnalyzeError] = useState<Error | null>(() => {
+		const er = workflowSnaps.fbAnalyze?.error;
+		if (!er) return null;
+		const err = new Error(er.message);
+		err.name = er.name;
+		return err;
+	});
+
+	const persistFbAnalyzeSnapshot = (body: FacebookAccountAnalyzeRequest, streamErr: Error | null) => {
+		const snapshot = {
+			version: WORKFLOW_CACHE_VERSION as typeof WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs: body,
+			result: streamErr !== null ? null : (fbAnalyzeMergedRef.current ?? null),
+			error: errorToCached(streamErr),
+		};
+		if (writeWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbFacebookAnalyze, snapshot) === "quota") {
+			toast.error(t("sys.workflowCache.quotaExceeded"));
+		}
+	};
+
+	const handleClearFbAnalyzePersisted = () => {
+		clearWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbFacebookAnalyze);
+		fbAnalyzeMergedRef.current = undefined;
+		fbAnalyzeStreamErrRef.current = null;
+		setFbUsername("");
+		setFbMaxPosts(1);
+		setFbAnalyzeStreamSteps([]);
+		setFbAnalyzeData(undefined);
+		setFbAnalyzeError(null);
+	};
+
+	const [fbPostUrl, setFbPostUrl] = useState(() => workflowSnaps.fbFetch?.inputs.url ?? "");
+	const [fbFetchStreamSteps, setFbFetchStreamSteps] = useState<SearchStreamStepRow[]>([]);
+	const [fbFetchData, setFbFetchData] = useState<unknown>(() => workflowSnaps.fbFetch?.result ?? undefined);
+	const [fbFetchStreaming, setFbFetchStreaming] = useState(false);
+	const [fbFetchError, setFbFetchError] = useState<Error | null>(() => {
+		const er = workflowSnaps.fbFetch?.error;
+		if (!er) return null;
+		const err = new Error(er.message);
+		err.name = er.name;
+		return err;
+	});
+
+	const persistFbFetchSnapshot = (body: FacebookFetchRequest, streamErr: Error | null) => {
+		const snapshot = {
+			version: WORKFLOW_CACHE_VERSION as typeof WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs: body,
+			result: streamErr !== null ? null : (fbFetchMergedRef.current ?? null),
+			error: errorToCached(streamErr),
+		};
+		if (writeWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbFacebookFetch, snapshot) === "quota") {
+			toast.error(t("sys.workflowCache.quotaExceeded"));
+		}
+	};
+
+	const handleClearFbFetchPersisted = () => {
+		clearWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbFacebookFetch);
+		fbFetchMergedRef.current = undefined;
+		fbFetchStreamErrRef.current = null;
+		setFbPostUrl("");
+		setFbFetchStreamSteps([]);
+		setFbFetchData(undefined);
+		setFbFetchError(null);
+	};
+
+	const [fbPostCommentsUrl, setFbPostCommentsUrl] = useState(() => workflowSnaps.fbPostUi?.inputs.url ?? "");
+	const [fbPostCommentsMode, setFbPostCommentsMode] = useState<FbPostCommentsMode>(
+		() => workflowSnaps.fbPostUi?.inputs.mode ?? "auto",
+	);
+	const [fbCommentsText, setFbCommentsText] = useState(() => workflowSnaps.fbPostUi?.inputs.commentsText ?? "");
+	const [fbGenerateTone, setFbGenerateTone] = useState<CommentGenerationTone>(
+		() => workflowSnaps.fbPostUi?.inputs.tone ?? "positive",
+	);
+	const [fbGenerateCount, setFbGenerateCount] = useState<OptionalFiniteNumber>(
+		() => workflowSnaps.fbPostUi?.inputs.generateCount ?? 3,
+	);
+	const [fbPostPeriodSeconds, setFbPostPeriodSeconds] = useState<OptionalFiniteNumber>(
+		() => workflowSnaps.fbPostUi?.inputs.periodSeconds ?? 30,
+	);
+	const [fbPostStreamSteps, setFbPostStreamSteps] = useState<SearchStreamStepRow[]>([]);
+	const [fbPostData, setFbPostData] = useState<unknown>(() => workflowSnaps.fbPostUi?.result ?? undefined);
+	const [fbPostStreaming, setFbPostStreaming] = useState(false);
+	const [fbPostError, setFbPostError] = useState<Error | null>(() => {
+		const er = workflowSnaps.fbPostUi?.error;
+		if (!er) return null;
+		const err = new Error(er.message);
+		err.name = er.name;
+		return err;
+	});
+
+	const persistFbPostSnapshot = (inputs: WbFbPostPersistInputs, streamErr: Error | null) => {
+		const snapshot = {
+			version: WORKFLOW_CACHE_VERSION as typeof WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs,
+			result: streamErr !== null ? null : (fbPostMergedRef.current ?? null),
+			error: errorToCached(streamErr),
+		};
+		if (writeWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbFacebookPost, snapshot) === "quota") {
+			toast.error(t("sys.workflowCache.quotaExceeded"));
+		}
+	};
+
+	const handleClearFbPostPersisted = () => {
+		clearWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbFacebookPost);
+		fbPostMergedRef.current = undefined;
+		fbPostStreamErrRef.current = null;
+		setFbPostCommentsUrl("");
+		setFbPostCommentsMode("auto");
+		setFbCommentsText("");
+		setFbGenerateTone("positive");
+		setFbGenerateCount(3);
+		setFbPostPeriodSeconds(30);
+		setFbPostStreamSteps([]);
+		setFbPostData(undefined);
+		setFbPostError(null);
+	};
+
+	const persistCampaignSnapshot = (variables: CampaignRequest, data: unknown | undefined, mutateErr: Error | null) => {
+		const snapshot = {
+			version: WORKFLOW_CACHE_VERSION as typeof WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs: variables,
+			result: mutateErr !== null ? null : (data ?? null),
+			error: errorToCached(mutateErr),
+		};
+		if (writeWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbCampaign, snapshot) === "quota") {
+			toast.error(t("sys.workflowCache.quotaExceeded"));
+		}
+	};
+
 	const campaignMutation = useMutation({
 		mutationFn: (body: CampaignRequest) => commentCampaignService.run(body),
+		onMutate: () => {
+			setCampaignHydratedError(null);
+		},
 		onSuccess: (data, variables) => {
 			queryClient.setQueryData(["comment-api", "campaign", variables], data);
+			setCampaignHydratedData(data);
+			persistCampaignSnapshot(variables, data, null);
+		},
+		onError: (error: unknown, variables) => {
+			const mutateErr = error instanceof Error ? error : new Error(String(error));
+			setCampaignHydratedError(mutateErr);
+			persistCampaignSnapshot(variables, undefined, mutateErr);
 		},
 	});
 
-	const [fbUsername, setFbUsername] = useState("");
-	const [fbMaxPosts, setFbMaxPosts] = useState<OptionalFiniteNumber>(1);
-	const [fbAnalyzeStreamSteps, setFbAnalyzeStreamSteps] = useState<SearchStreamStepRow[]>([]);
-	const [fbAnalyzeData, setFbAnalyzeData] = useState<unknown>();
-	const [fbAnalyzeStreaming, setFbAnalyzeStreaming] = useState(false);
-	const [fbAnalyzeError, setFbAnalyzeError] = useState<Error | null>(null);
-
-	const [fbPostUrl, setFbPostUrl] = useState("");
-	const [fbFetchStreamSteps, setFbFetchStreamSteps] = useState<SearchStreamStepRow[]>([]);
-	const [fbFetchData, setFbFetchData] = useState<unknown>();
-	const [fbFetchStreaming, setFbFetchStreaming] = useState(false);
-	const [fbFetchError, setFbFetchError] = useState<Error | null>(null);
-
-	const [fbPostCommentsUrl, setFbPostCommentsUrl] = useState("");
-	const [fbPostCommentsMode, setFbPostCommentsMode] = useState<FbPostCommentsMode>("auto");
-	const [fbCommentsText, setFbCommentsText] = useState("");
-	const [fbGenerateTone, setFbGenerateTone] = useState<CommentGenerationTone>("positive");
-	const [fbGenerateCount, setFbGenerateCount] = useState<OptionalFiniteNumber>(3);
-	const [fbPostPeriodSeconds, setFbPostPeriodSeconds] = useState<OptionalFiniteNumber>(30);
-	const [fbPostStreamSteps, setFbPostStreamSteps] = useState<SearchStreamStepRow[]>([]);
-	const [fbPostData, setFbPostData] = useState<unknown>();
-	const [fbPostStreaming, setFbPostStreaming] = useState(false);
-	const [fbPostError, setFbPostError] = useState<Error | null>(null);
+	const handleClearCampaignPersisted = () => {
+		clearWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.wbCampaign);
+		campaignMutation.reset();
+		setCampKeyword("");
+		setCampMaxPosts(10);
+		setCampSelectedAccounts([]);
+		setCampPeriodSeconds(60);
+		setCampPeriodHours(24);
+		setCampSearchType("all");
+		setCampTone("neutral");
+		setCampGenerateCount(5);
+		setCampCommentsText("");
+		setCampaignHydratedData(undefined);
+		setCampaignHydratedError(null);
+	};
 
 	const buildInstagramPostBody = (): PostCommentsRequest => {
 		const base: PostCommentsRequest = {
@@ -480,6 +901,7 @@ export default function Workbench() {
 		const ac = new AbortController();
 		igPostAbortRef.current = ac;
 		setPostStreamError(null);
+		igPostStreamErrRef.current = null;
 		setPostStreamData(undefined);
 		igPostStreamStepIdRef.current = 0;
 		setPostStreamSteps([]);
@@ -495,16 +917,33 @@ export default function Workbench() {
 						setPostStreamSteps((prev) => [...prev, { id, ...progressStep }]);
 						return;
 					}
-					setPostStreamData((prev: unknown) => mergeWorkbenchStreamChunk("igPost", prev, chunk));
+					setPostStreamData((prev: unknown) => {
+						const next = mergeWorkbenchStreamChunk("igPost", prev, chunk);
+						igPostMergedRef.current = next;
+						return next;
+					});
 				},
 			})
 			.catch((error: unknown) => {
-				setPostStreamError(error instanceof Error ? error : new Error(String(error)));
+				const normalized = error instanceof Error ? error : new Error(String(error));
+				igPostStreamErrRef.current = normalized;
+				setPostStreamError(normalized);
 			})
 			.finally(() => {
 				if (igPostAbortRef.current === ac) {
 					setPostStreaming(false);
 					setPostStreamSteps([]);
+					const persistedInputs: WbIgPostPersistInputs = {
+						mode: igPostCommentsMode,
+						postUrl,
+						commentsText,
+						postSelectedAccounts,
+						periodSeconds,
+						igGenerateTone,
+						igGenerateCount,
+						igGenerateLanguage,
+					};
+					persistIgPostSnapshot(persistedInputs, igPostStreamErrRef.current);
 				}
 			});
 	};
@@ -519,6 +958,7 @@ export default function Workbench() {
 		const ac = new AbortController();
 		autoReplyAbortRef.current = ac;
 		setAutoReplyError(null);
+		autoReplyStreamErrRef.current = null;
 		setAutoReplyData(undefined);
 		autoReplyStreamStepIdRef.current = 0;
 		setAutoReplyStreamSteps([]);
@@ -538,7 +978,11 @@ export default function Workbench() {
 					if (hasAutoReplyStreamResultPayload(chunk)) {
 						hasResultChunk = true;
 					}
-					setAutoReplyData((prev: unknown) => mergeWorkbenchStreamChunk("autoReply", prev, chunk));
+					setAutoReplyData((prev: unknown) => {
+						const next = mergeWorkbenchStreamChunk("autoReply", prev, chunk);
+						autoReplyMergedRef.current = next;
+						return next;
+					});
 				},
 			})
 			.then(async () => {
@@ -548,16 +992,25 @@ export default function Workbench() {
 				const fallbackResult = await commentCommentsService.autoReply(body);
 				if (autoReplyAbortRef.current === ac) {
 					setAutoReplyData(fallbackResult);
+					autoReplyMergedRef.current = fallbackResult;
 					queryClient.setQueryData(["comment-api", "auto-reply", body], fallbackResult);
 				}
 			})
 			.catch((error: unknown) => {
-				setAutoReplyError(error instanceof Error ? error : new Error(String(error)));
+				const normalized = error instanceof Error ? error : new Error(String(error));
+				autoReplyStreamErrRef.current = normalized;
+				setAutoReplyError(normalized);
 			})
 			.finally(() => {
 				if (autoReplyAbortRef.current === ac) {
 					setAutoReplyStreaming(false);
 					setAutoReplyStreamSteps([]);
+					const inputs: WbAutoReplyPersistInputs = {
+						postUrl: autoReplyPostUrl,
+						selectedAccounts: autoReplySelectedAccounts,
+						periodSeconds: autoReplyPeriodSeconds,
+					};
+					persistAutoReplySnapshot(inputs, autoReplyStreamErrRef.current);
 				}
 			});
 	};
@@ -571,6 +1024,7 @@ export default function Workbench() {
 		const ac = new AbortController();
 		fbAnalyzeAbortRef.current = ac;
 		setFbAnalyzeError(null);
+		fbAnalyzeStreamErrRef.current = null;
 		setFbAnalyzeData(undefined);
 		fbAnalyzeStreamStepIdRef.current = 0;
 		setFbAnalyzeStreamSteps([]);
@@ -590,7 +1044,11 @@ export default function Workbench() {
 					if (hasFbAnalyzeStreamResultPayload(chunk)) {
 						hasResultChunk = true;
 					}
-					setFbAnalyzeData((prev: unknown) => mergeWorkbenchStreamChunk("fbAnalyze", prev, chunk));
+					setFbAnalyzeData((prev: unknown) => {
+						const next = mergeWorkbenchStreamChunk("fbAnalyze", prev, chunk);
+						fbAnalyzeMergedRef.current = next;
+						return next;
+					});
 				},
 			})
 			.then(async () => {
@@ -600,16 +1058,20 @@ export default function Workbench() {
 				const fallbackResult = await commentFacebookService.analyzeAccount(body);
 				if (fbAnalyzeAbortRef.current === ac) {
 					setFbAnalyzeData(fallbackResult);
+					fbAnalyzeMergedRef.current = fallbackResult;
 					queryClient.setQueryData(["comment-api", "facebook", "account-analyze", body], fallbackResult);
 				}
 			})
 			.catch((error: unknown) => {
-				setFbAnalyzeError(error instanceof Error ? error : new Error(String(error)));
+				const normalized = error instanceof Error ? error : new Error(String(error));
+				fbAnalyzeStreamErrRef.current = normalized;
+				setFbAnalyzeError(normalized);
 			})
 			.finally(() => {
 				if (fbAnalyzeAbortRef.current === ac) {
 					setFbAnalyzeStreaming(false);
 					setFbAnalyzeStreamSteps([]);
+					persistFbAnalyzeSnapshot(body, fbAnalyzeStreamErrRef.current);
 				}
 			});
 	};
@@ -620,6 +1082,7 @@ export default function Workbench() {
 		const ac = new AbortController();
 		fbFetchAbortRef.current = ac;
 		setFbFetchError(null);
+		fbFetchStreamErrRef.current = null;
 		setFbFetchData(undefined);
 		fbFetchStreamStepIdRef.current = 0;
 		setFbFetchStreamSteps([]);
@@ -639,7 +1102,11 @@ export default function Workbench() {
 					if (hasFbFetchStreamResultPayload(chunk)) {
 						hasResultChunk = true;
 					}
-					setFbFetchData((prev: unknown) => mergeWorkbenchStreamChunk("fbFetch", prev, chunk));
+					setFbFetchData((prev: unknown) => {
+						const next = mergeWorkbenchStreamChunk("fbFetch", prev, chunk);
+						fbFetchMergedRef.current = next;
+						return next;
+					});
 				},
 			})
 			.then(async () => {
@@ -649,16 +1116,20 @@ export default function Workbench() {
 				const fallbackResult = await commentFacebookService.fetchComments(body);
 				if (fbFetchAbortRef.current === ac) {
 					setFbFetchData(fallbackResult);
+					fbFetchMergedRef.current = fallbackResult;
 					queryClient.setQueryData(["comment-api", "facebook", "comments-fetch", body], fallbackResult);
 				}
 			})
 			.catch((error: unknown) => {
-				setFbFetchError(error instanceof Error ? error : new Error(String(error)));
+				const normalized = error instanceof Error ? error : new Error(String(error));
+				fbFetchStreamErrRef.current = normalized;
+				setFbFetchError(normalized);
 			})
 			.finally(() => {
 				if (fbFetchAbortRef.current === ac) {
 					setFbFetchStreaming(false);
 					setFbFetchStreamSteps([]);
+					persistFbFetchSnapshot(body, fbFetchStreamErrRef.current);
 				}
 			});
 	};
@@ -683,6 +1154,7 @@ export default function Workbench() {
 		const ac = new AbortController();
 		fbPostAbortRef.current = ac;
 		setFbPostError(null);
+		fbPostStreamErrRef.current = null;
 		setFbPostData(undefined);
 		fbPostStreamStepIdRef.current = 0;
 		setFbPostStreamSteps([]);
@@ -702,7 +1174,11 @@ export default function Workbench() {
 					if (hasFbPostStreamResultPayload(chunk)) {
 						hasResultChunk = true;
 					}
-					setFbPostData((prev: unknown) => mergeWorkbenchStreamChunk("fbPost", prev, chunk));
+					setFbPostData((prev: unknown) => {
+						const next = mergeWorkbenchStreamChunk("fbPost", prev, chunk);
+						fbPostMergedRef.current = next;
+						return next;
+					});
 				},
 			})
 			.then(async () => {
@@ -712,16 +1188,28 @@ export default function Workbench() {
 				const fallbackResult = await commentFacebookService.postComments(body);
 				if (fbPostAbortRef.current === ac) {
 					setFbPostData(fallbackResult);
+					fbPostMergedRef.current = fallbackResult;
 					queryClient.setQueryData(["comment-api", "facebook", "comments-post", body], fallbackResult);
 				}
 			})
 			.catch((error: unknown) => {
-				setFbPostError(error instanceof Error ? error : new Error(String(error)));
+				const normalized = error instanceof Error ? error : new Error(String(error));
+				fbPostStreamErrRef.current = normalized;
+				setFbPostError(normalized);
 			})
 			.finally(() => {
 				if (fbPostAbortRef.current === ac) {
 					setFbPostStreaming(false);
 					setFbPostStreamSteps([]);
+					const persistedInputs: WbFbPostPersistInputs = {
+						mode: fbPostCommentsMode,
+						url: fbPostCommentsUrl,
+						commentsText: fbCommentsText,
+						tone: fbGenerateTone,
+						generateCount: fbGenerateCount,
+						periodSeconds: fbPostPeriodSeconds,
+					};
+					persistFbPostSnapshot(persistedInputs, fbPostStreamErrRef.current);
 				}
 			});
 	};
@@ -851,13 +1339,23 @@ export default function Workbench() {
 									</Select>
 								</div>
 							</div>
-							<Button
-								className="w-full sm:w-auto"
-								disabled={searchKeywords.length === 0 || searchStreaming}
-								onClick={runSearch}
-							>
-								{searchStreaming ? t("sys.workbench.search.running") : t("sys.workbench.search.run")}
-							</Button>
+							<div className="flex flex-wrap gap-2">
+								<Button
+									className="w-full sm:w-auto"
+									disabled={searchKeywords.length === 0 || searchStreaming}
+									onClick={runSearch}
+								>
+									{searchStreaming ? t("sys.workbench.search.running") : t("sys.workbench.search.run")}
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									disabled={searchStreaming}
+									onClick={handleClearIgSearchPersisted}
+								>
+									{t("sys.workflowCache.clearOutcome")}
+								</Button>
+							</div>
 							<SearchStreamProgress
 								active={searchStreaming}
 								storageKey="workbench-search"
@@ -998,20 +1496,25 @@ export default function Workbench() {
 							emptyText={t("sys.workbench.shared.noAccounts")}
 							refreshLabel={t("sys.workbench.shared.refreshAccounts")}
 						/>
-						<Button
-							className="w-full sm:w-auto"
-							disabled={
-								!postUrl.trim() ||
-								postStreaming ||
-								postSelectedAccounts.length === 0 ||
-								(igPostCommentsMode === "self" && linesToArray(commentsText).length === 0) ||
-								(igPostCommentsMode === "ai" && (igGenerateCount === "" || igGenerateCount < 1)) ||
-								periodSeconds === ""
-							}
-							onClick={runPostComments}
-						>
-							{postStreaming ? t("sys.workbench.post.posting") : t("sys.workbench.post.run")}
-						</Button>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								className="w-full sm:w-auto"
+								disabled={
+									!postUrl.trim() ||
+									postStreaming ||
+									postSelectedAccounts.length === 0 ||
+									(igPostCommentsMode === "self" && linesToArray(commentsText).length === 0) ||
+									(igPostCommentsMode === "ai" && (igGenerateCount === "" || igGenerateCount < 1)) ||
+									periodSeconds === ""
+								}
+								onClick={runPostComments}
+							>
+								{postStreaming ? t("sys.workbench.post.posting") : t("sys.workbench.post.run")}
+							</Button>
+							<Button type="button" variant="outline" disabled={postStreaming} onClick={handleClearIgPostPersisted}>
+								{t("sys.workflowCache.clearOutcome")}
+							</Button>
+						</div>
 						<SearchStreamProgress
 							active={postStreaming}
 							storageKey="workbench-instagram-post-stream"
@@ -1070,17 +1573,27 @@ export default function Workbench() {
 							emptyText={t("sys.workbench.shared.noAccounts")}
 							refreshLabel={t("sys.workbench.shared.refreshAccounts")}
 						/>
-						<Button
-							disabled={
-								!autoReplyPostUrl.trim() ||
-								autoReplySelectedAccounts.length === 0 ||
-								autoReplyStreaming ||
-								autoReplyPeriodSeconds === ""
-							}
-							onClick={runAutoReply}
-						>
-							{autoReplyStreaming ? t("sys.workbench.autoReply.running") : t("sys.workbench.autoReply.run")}
-						</Button>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								disabled={
+									!autoReplyPostUrl.trim() ||
+									autoReplySelectedAccounts.length === 0 ||
+									autoReplyStreaming ||
+									autoReplyPeriodSeconds === ""
+								}
+								onClick={runAutoReply}
+							>
+								{autoReplyStreaming ? t("sys.workbench.autoReply.running") : t("sys.workbench.autoReply.run")}
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								disabled={autoReplyStreaming}
+								onClick={handleClearAutoReplyPersisted}
+							>
+								{t("sys.workflowCache.clearOutcome")}
+							</Button>
+						</div>
 						<SearchStreamProgress
 							active={autoReplyStreaming}
 							storageKey="workbench-auto-reply-stream"
@@ -1185,15 +1698,31 @@ export default function Workbench() {
 							emptyText={t("sys.workbench.shared.noAccounts")}
 							refreshLabel={t("sys.workbench.shared.refreshAccounts")}
 						/>
-						<Button
-							disabled={!campKeyword.trim() || campSelectedAccounts.length === 0 || campaignMutation.isPending}
-							onClick={runCampaign}
-						>
-							{campaignMutation.isPending ? t("sys.workbench.campaign.running") : t("sys.workbench.campaign.run")}
-						</Button>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								disabled={!campKeyword.trim() || campSelectedAccounts.length === 0 || campaignMutation.isPending}
+								onClick={runCampaign}
+							>
+								{campaignMutation.isPending ? t("sys.workbench.campaign.running") : t("sys.workbench.campaign.run")}
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								disabled={campaignMutation.isPending}
+								onClick={handleClearCampaignPersisted}
+							>
+								{t("sys.workflowCache.clearOutcome")}
+							</Button>
+						</div>
 						<ApiLongRunningNotice active={campaignMutation.isPending} storageKey="workbench-campaign" />
 						<ApiResultView
-							value={campaignMutation.data ?? (campaignMutation.isError ? campaignMutation.error : undefined)}
+							value={
+								campaignMutation.data ??
+								campaignHydratedData ??
+								(campaignMutation.isError ? campaignMutation.error : undefined) ??
+								campaignHydratedError ??
+								undefined
+							}
 						/>
 					</WorkflowShell>
 				</TabsContent>
@@ -1277,15 +1806,25 @@ export default function Workbench() {
 									</Select>
 								</div>
 							</div>
-							<Button
-								className="w-full sm:w-auto"
-								disabled={fbUnifiedKeywords.length === 0 || fbUnifiedSearchStreaming}
-								onClick={runFacebookUnifiedSearch}
-							>
-								{fbUnifiedSearchStreaming
-									? t("sys.workbench.facebookSearch.running")
-									: t("sys.workbench.facebookSearch.run")}
-							</Button>
+							<div className="flex flex-wrap gap-2">
+								<Button
+									className="w-full sm:w-auto"
+									disabled={fbUnifiedKeywords.length === 0 || fbUnifiedSearchStreaming}
+									onClick={runFacebookUnifiedSearch}
+								>
+									{fbUnifiedSearchStreaming
+										? t("sys.workbench.facebookSearch.running")
+										: t("sys.workbench.facebookSearch.run")}
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									disabled={fbUnifiedSearchStreaming}
+									onClick={handleClearFbUnifiedPersisted}
+								>
+									{t("sys.workflowCache.clearOutcome")}
+								</Button>
+							</div>
 							<SearchStreamProgress
 								active={fbUnifiedSearchStreaming}
 								storageKey="workbench-fb-unified-search"
@@ -1330,9 +1869,19 @@ export default function Workbench() {
 								/>
 							</div>
 						</div>
-						<Button disabled={!fbUsername.trim() || fbAnalyzeStreaming} onClick={runFacebookAnalyze}>
-							{fbAnalyzeStreaming ? t("sys.workbench.facebook.analyzing") : t("sys.workbench.facebook.analyze")}
-						</Button>
+						<div className="flex flex-wrap gap-2">
+							<Button disabled={!fbUsername.trim() || fbAnalyzeStreaming} onClick={runFacebookAnalyze}>
+								{fbAnalyzeStreaming ? t("sys.workbench.facebook.analyzing") : t("sys.workbench.facebook.analyze")}
+							</Button>
+							<Button
+								type="button"
+								variant="outline"
+								disabled={fbAnalyzeStreaming}
+								onClick={handleClearFbAnalyzePersisted}
+							>
+								{t("sys.workflowCache.clearOutcome")}
+							</Button>
+						</div>
 						<SearchStreamProgress
 							active={fbAnalyzeStreaming}
 							storageKey="workbench-facebook-account-stream"
@@ -1359,9 +1908,14 @@ export default function Workbench() {
 							<Label htmlFor="fburl">{t("sys.workbench.facebook.postUrlLabel")}</Label>
 							<Input id="fburl" value={fbPostUrl} onChange={(event) => setFbPostUrl(event.target.value)} />
 						</div>
-						<Button disabled={!fbPostUrl.trim() || fbFetchStreaming} onClick={runFacebookFetch}>
-							{fbFetchStreaming ? t("sys.workbench.facebook.fetching") : t("sys.workbench.facebook.fetch")}
-						</Button>
+						<div className="flex flex-wrap gap-2">
+							<Button disabled={!fbPostUrl.trim() || fbFetchStreaming} onClick={runFacebookFetch}>
+								{fbFetchStreaming ? t("sys.workbench.facebook.fetching") : t("sys.workbench.facebook.fetch")}
+							</Button>
+							<Button type="button" variant="outline" disabled={fbFetchStreaming} onClick={handleClearFbFetchPersisted}>
+								{t("sys.workflowCache.clearOutcome")}
+							</Button>
+						</div>
 						<SearchStreamProgress
 							active={fbFetchStreaming}
 							storageKey="workbench-facebook-fetch-stream"
@@ -1477,19 +2031,24 @@ export default function Workbench() {
 								onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setFbPostPeriodSeconds)}
 							/>
 						</div>
-						<Button
-							className="w-full sm:w-auto"
-							disabled={
-								!fbPostCommentsUrl.trim() ||
-								fbPostStreaming ||
-								(fbPostCommentsMode === "manual" && linesToArray(fbCommentsText).length === 0) ||
-								(fbPostCommentsMode === "auto" && (fbGenerateCount === "" || fbGenerateCount < 1)) ||
-								fbPostPeriodSeconds === ""
-							}
-							onClick={runFacebookPost}
-						>
-							{fbPostStreaming ? t("sys.workbench.facebook.posting") : t("sys.workbench.facebook.post")}
-						</Button>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								className="w-full sm:w-auto"
+								disabled={
+									!fbPostCommentsUrl.trim() ||
+									fbPostStreaming ||
+									(fbPostCommentsMode === "manual" && linesToArray(fbCommentsText).length === 0) ||
+									(fbPostCommentsMode === "auto" && (fbGenerateCount === "" || fbGenerateCount < 1)) ||
+									fbPostPeriodSeconds === ""
+								}
+								onClick={runFacebookPost}
+							>
+								{fbPostStreaming ? t("sys.workbench.facebook.posting") : t("sys.workbench.facebook.post")}
+							</Button>
+							<Button type="button" variant="outline" disabled={fbPostStreaming} onClick={handleClearFbPostPersisted}>
+								{t("sys.workflowCache.clearOutcome")}
+							</Button>
+						</div>
 						<SearchStreamProgress
 							active={fbPostStreaming}
 							storageKey="workbench-facebook-post-stream"

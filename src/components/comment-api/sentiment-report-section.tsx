@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { commentCommentsService } from "@/api/services/comment";
 import { ApiJsonPreview, ApiLongRunningNotice } from "@/components/comment-api/api-result";
@@ -8,10 +8,30 @@ import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 import { buildCommentExportFilename, downloadBlob } from "@/utils/download-blob";
+import {
+	clearWorkflowSnapshot,
+	readWorkflowSnapshot,
+	WORKFLOW_CACHE_VERSION,
+	writeWorkflowSnapshot,
+	WORKFLOW_SNAPSHOT_IDS,
+} from "@/utils/workflow-session-cache";
+
+type SentimentStatsUrlSnapshot = { postUrl: string };
 
 export function SentimentReportSection() {
 	const { t } = useTranslation();
-	const [statsPostUrl, setStatsPostUrl] = useState("");
+	const persisted = readWorkflowSnapshot<SentimentStatsUrlSnapshot>(WORKFLOW_SNAPSHOT_IDS.sentimentReportsPostUrl);
+	const [statsPostUrl, setStatsPostUrl] = useState(() => persisted?.inputs.postUrl ?? "");
+
+	useEffect(() => {
+		writeWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.sentimentReportsPostUrl, {
+			version: WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs: { postUrl: statsPostUrl },
+			result: null,
+			error: null,
+		});
+	}, [statsPostUrl]);
 
 	const exportMutation = useMutation({
 		mutationFn: async (format: "json" | "csv") => {
@@ -22,6 +42,12 @@ export function SentimentReportSection() {
 			downloadBlob(blob, buildCommentExportFilename(statsPostUrl, format));
 		},
 	});
+
+	const handleClearPersisted = () => {
+		clearWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.sentimentReportsPostUrl);
+		setStatsPostUrl("");
+		exportMutation.reset();
+	};
 
 	return (
 		<WorkflowShell
@@ -56,6 +82,9 @@ export function SentimentReportSection() {
 						onClick={() => exportMutation.mutate("csv")}
 					>
 						{t("sys.analysis.exportCsv")}
+					</Button>
+					<Button type="button" variant="ghost" onClick={handleClearPersisted}>
+						{t("sys.workflowCache.clearOutcome")}
 					</Button>
 				</div>
 			</div>

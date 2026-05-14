@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router";
@@ -20,54 +20,142 @@ import {
 	optionalFiniteNumberDisplay,
 	setOptionalFiniteNumberFromInput,
 } from "@/utils/optional-number-input";
+import {
+	clearWorkflowSnapshot,
+	readWorkflowSnapshot,
+	WORKFLOW_CACHE_VERSION,
+	writeWorkflowSnapshot,
+	WORKFLOW_SNAPSHOT_IDS,
+} from "@/utils/workflow-session-cache";
 
-const CACHE_TIME = 1000 * 60 * 30;
+type ListRequestState = {
+	post_url: string;
+	sentiment?: SentimentFilter;
+	page: number;
+	limit: number;
+};
+
+type AnalysisFetchFormSnapshot = { postUrl: string; fetchRequest: FetchRequest | null };
+type AnalysisListFormSnapshot = {
+	listPostUrl: string;
+	sentiment: SentimentFilter | "all";
+	page: OptionalFiniteNumber;
+	limit: OptionalFiniteNumber;
+	listRequest: ListRequestState | null;
+};
+type AnalysisAccountFormSnapshot = {
+	username: string;
+	maxPosts: OptionalFiniteNumber;
+	accountRequest: AccountAnalyzeRequest | null;
+};
+
+const workflowQueryOptions = {
+	staleTime: Number.POSITIVE_INFINITY,
+	gcTime: Number.POSITIVE_INFINITY,
+	refetchOnWindowFocus: false,
+	refetchOnMount: false,
+} as const;
 
 export default function AnalysisPage() {
 	const { t } = useTranslation();
 	const { endpoint } = useParams();
+	const queryClient = useQueryClient();
 	const activeMenu = ["fetch", "list", "stats", "account"].includes(endpoint ?? "") ? (endpoint as string) : "stats";
-	const [postUrl, setPostUrl] = useState("");
-	const [fetchRequest, setFetchRequest] = useState<FetchRequest | null>(null);
+
+	const fetchFormSnap = readWorkflowSnapshot<AnalysisFetchFormSnapshot>(WORKFLOW_SNAPSHOT_IDS.analysisCommentsFetch);
+	const [postUrl, setPostUrl] = useState(() => fetchFormSnap?.inputs.postUrl ?? "");
+	const [fetchRequest, setFetchRequest] = useState<FetchRequest | null>(
+		() => fetchFormSnap?.inputs.fetchRequest ?? null,
+	);
 	const fetchQuery = useQuery({
 		queryKey: ["comment-api", "comments-fetch", fetchRequest],
 		queryFn: () => commentCommentsService.fetchComments(fetchRequest as FetchRequest),
 		enabled: fetchRequest != null,
-		staleTime: CACHE_TIME,
-		gcTime: CACHE_TIME,
+		...workflowQueryOptions,
 	});
 
-	const [listPostUrl, setListPostUrl] = useState("");
-	const [sentiment, setSentiment] = useState<SentimentFilter | "all">("all");
-	const [page, setPage] = useState<OptionalFiniteNumber>(1);
-	const [limit, setLimit] = useState<OptionalFiniteNumber>(50);
-	const [listRequest, setListRequest] = useState<{
-		post_url: string;
-		sentiment?: SentimentFilter;
-		page: number;
-		limit: number;
-	} | null>(null);
+	const listFormSnap = readWorkflowSnapshot<AnalysisListFormSnapshot>(WORKFLOW_SNAPSHOT_IDS.analysisCommentsList);
+	const [listPostUrl, setListPostUrl] = useState(() => listFormSnap?.inputs.listPostUrl ?? "");
+	const [sentiment, setSentiment] = useState<SentimentFilter | "all">(() => listFormSnap?.inputs.sentiment ?? "all");
+	const [page, setPage] = useState<OptionalFiniteNumber>(() => listFormSnap?.inputs.page ?? 1);
+	const [limit, setLimit] = useState<OptionalFiniteNumber>(() => listFormSnap?.inputs.limit ?? 50);
+	const [listRequest, setListRequest] = useState<ListRequestState | null>(
+		() => listFormSnap?.inputs.listRequest ?? null,
+	);
 	const commentsQuery = useQuery({
 		queryKey: ["comment-api", "comments-list", listRequest],
-		queryFn: () =>
-			commentCommentsService.listComments(
-				listRequest as { post_url: string; sentiment?: SentimentFilter; page: number; limit: number },
-			),
+		queryFn: () => commentCommentsService.listComments(listRequest as ListRequestState),
 		enabled: listRequest != null,
-		staleTime: CACHE_TIME,
-		gcTime: CACHE_TIME,
+		...workflowQueryOptions,
 	});
 
-	const [username, setUsername] = useState("");
-	const [maxPosts, setMaxPosts] = useState<OptionalFiniteNumber>(10);
-	const [accountRequest, setAccountRequest] = useState<AccountAnalyzeRequest | null>(null);
+	const accountFormSnap = readWorkflowSnapshot<AnalysisAccountFormSnapshot>(WORKFLOW_SNAPSHOT_IDS.analysisAccount);
+	const [username, setUsername] = useState(() => accountFormSnap?.inputs.username ?? "");
+	const [maxPosts, setMaxPosts] = useState<OptionalFiniteNumber>(() => accountFormSnap?.inputs.maxPosts ?? 10);
+	const [accountRequest, setAccountRequest] = useState<AccountAnalyzeRequest | null>(
+		() => accountFormSnap?.inputs.accountRequest ?? null,
+	);
 	const analyzeQuery = useQuery({
 		queryKey: ["comment-api", "account-analyze", accountRequest],
 		queryFn: () => commentAnalyzeService.analyzeAccount(accountRequest as AccountAnalyzeRequest),
 		enabled: accountRequest != null,
-		staleTime: CACHE_TIME,
-		gcTime: CACHE_TIME,
+		...workflowQueryOptions,
 	});
+
+	const persistFetchForm = (next: AnalysisFetchFormSnapshot) => {
+		writeWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.analysisCommentsFetch, {
+			version: WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs: next,
+			result: null,
+			error: null,
+		});
+	};
+
+	const persistListForm = (next: AnalysisListFormSnapshot) => {
+		writeWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.analysisCommentsList, {
+			version: WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs: next,
+			result: null,
+			error: null,
+		});
+	};
+
+	const persistAccountForm = (next: AnalysisAccountFormSnapshot) => {
+		writeWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.analysisAccount, {
+			version: WORKFLOW_CACHE_VERSION,
+			savedAt: Date.now(),
+			inputs: next,
+			result: null,
+			error: null,
+		});
+	};
+
+	const clearFetchWorkflow = () => {
+		queryClient.removeQueries({ queryKey: ["comment-api", "comments-fetch"] });
+		clearWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.analysisCommentsFetch);
+		setPostUrl("");
+		setFetchRequest(null);
+	};
+
+	const clearListWorkflow = () => {
+		queryClient.removeQueries({ queryKey: ["comment-api", "comments-list"] });
+		clearWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.analysisCommentsList);
+		setListPostUrl("");
+		setSentiment("all");
+		setPage(1);
+		setLimit(50);
+		setListRequest(null);
+	};
+
+	const clearAccountWorkflow = () => {
+		queryClient.removeQueries({ queryKey: ["comment-api", "account-analyze"] });
+		clearWorkflowSnapshot(WORKFLOW_SNAPSHOT_IDS.analysisAccount);
+		setUsername("");
+		setMaxPosts(10);
+		setAccountRequest(null);
+	};
 
 	return (
 		<div className="flex flex-col gap-4 w-full">
@@ -97,12 +185,22 @@ export default function AnalysisPage() {
 								placeholder={t("sys.analysis.postUrlPlaceholder")}
 							/>
 						</div>
-						<Button
-							disabled={!postUrl.trim() || fetchQuery.isFetching}
-							onClick={() => setFetchRequest({ url: postUrl.trim() })}
-						>
-							{fetchQuery.isFetching ? t("sys.analysis.fetching") : t("sys.analysis.fetchAnalyze")}
-						</Button>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								disabled={!postUrl.trim() || fetchQuery.isFetching}
+								onClick={() => {
+									const trimmed = postUrl.trim();
+									const req: FetchRequest = { url: trimmed };
+									persistFetchForm({ postUrl: trimmed, fetchRequest: req });
+									setFetchRequest(req);
+								}}
+							>
+								{fetchQuery.isFetching ? t("sys.analysis.fetching") : t("sys.analysis.fetchAnalyze")}
+							</Button>
+							<Button type="button" variant="outline" disabled={fetchQuery.isFetching} onClick={clearFetchWorkflow}>
+								{t("sys.workflowCache.clearOutcome")}
+							</Button>
+						</div>
 						<ApiLongRunningNotice active={fetchQuery.isFetching} storageKey="analysis-fetch" />
 						<ApiResultView value={fetchQuery.data ?? (fetchQuery.isError ? fetchQuery.error : undefined)} />
 					</WorkflowShell>
@@ -160,20 +258,34 @@ export default function AnalysisPage() {
 								/>
 							</div>
 						</div>
-						<Button
-							disabled={!listPostUrl.trim() || commentsQuery.isFetching || page === "" || limit === ""}
-							onClick={() =>
-								setListRequest({
-									post_url: listPostUrl.trim(),
-									page: finiteNumberOr(page, 1),
-									limit: finiteNumberOr(limit, 50),
-									...(sentiment === "all" ? {} : { sentiment }),
-								})
-							}
-						>
-							<Icon icon="mdi:refresh" size={16} />
-							{commentsQuery.isFetching ? t("sys.analysis.loadingList") : t("sys.analysis.refreshList")}
-						</Button>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								disabled={!listPostUrl.trim() || commentsQuery.isFetching || page === "" || limit === ""}
+								onClick={() => {
+									const trimmed = listPostUrl.trim();
+									const lr: ListRequestState = {
+										post_url: trimmed,
+										page: finiteNumberOr(page, 1),
+										limit: finiteNumberOr(limit, 50),
+										...(sentiment === "all" ? {} : { sentiment }),
+									};
+									persistListForm({
+										listPostUrl: trimmed,
+										sentiment,
+										page,
+										limit,
+										listRequest: lr,
+									});
+									setListRequest(lr);
+								}}
+							>
+								<Icon icon="mdi:refresh" size={16} />
+								{commentsQuery.isFetching ? t("sys.analysis.loadingList") : t("sys.analysis.refreshList")}
+							</Button>
+							<Button type="button" variant="outline" disabled={commentsQuery.isFetching} onClick={clearListWorkflow}>
+								{t("sys.workflowCache.clearOutcome")}
+							</Button>
+						</div>
 						<ApiLongRunningNotice active={commentsQuery.isFetching} storageKey="analysis-list" />
 						<ApiResultView value={commentsQuery.data ?? (commentsQuery.isError ? commentsQuery.error : undefined)} />
 					</WorkflowShell>
@@ -210,17 +322,29 @@ export default function AnalysisPage() {
 								/>
 							</div>
 						</div>
-						<Button
-							disabled={!username.trim() || analyzeQuery.isFetching || maxPosts === ""}
-							onClick={() =>
-								setAccountRequest({
-									username: username.trim(),
-									max_posts: finiteNumberOr(maxPosts, 10),
-								})
-							}
-						>
-							{analyzeQuery.isFetching ? t("sys.analysis.analyzing") : t("sys.analysis.runAccountAnalyze")}
-						</Button>
+						<div className="flex flex-wrap gap-2">
+							<Button
+								disabled={!username.trim() || analyzeQuery.isFetching || maxPosts === ""}
+								onClick={() => {
+									const trimmed = username.trim();
+									const ar: AccountAnalyzeRequest = {
+										username: trimmed,
+										max_posts: finiteNumberOr(maxPosts, 10),
+									};
+									persistAccountForm({
+										username: trimmed,
+										maxPosts,
+										accountRequest: ar,
+									});
+									setAccountRequest(ar);
+								}}
+							>
+								{analyzeQuery.isFetching ? t("sys.analysis.analyzing") : t("sys.analysis.runAccountAnalyze")}
+							</Button>
+							<Button type="button" variant="outline" disabled={analyzeQuery.isFetching} onClick={clearAccountWorkflow}>
+								{t("sys.workflowCache.clearOutcome")}
+							</Button>
+						</div>
 						<ApiLongRunningNotice active={analyzeQuery.isFetching} storageKey="analysis-account" />
 						<ApiResultView value={analyzeQuery.data ?? (analyzeQuery.isError ? analyzeQuery.error : undefined)} />
 					</WorkflowShell>
