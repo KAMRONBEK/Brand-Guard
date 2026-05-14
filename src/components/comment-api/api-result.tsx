@@ -9,6 +9,7 @@ import { Badge } from "@/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { Progress } from "@/ui/progress";
 import { Text } from "@/ui/typography";
+import { cn } from "@/utils";
 import { InsightEmptyState } from "./executive-ui";
 import {
 	CaptionSignalsPanel,
@@ -193,11 +194,16 @@ export function MetricCard({
 	value,
 	helper,
 	tone,
+	compact,
+	className,
 }: {
 	label: string;
 	value: string | number;
 	helper: string;
 	tone?: "success" | "warning" | "danger";
+	/** Tighter sizing for dense layouts (e.g. inside post grids). */
+	compact?: boolean;
+	className?: string;
 }) {
 	const toneClass =
 		tone === "success"
@@ -209,11 +215,13 @@ export function MetricCard({
 					: "text-foreground";
 
 	return (
-		<Card className="bg-background/70">
-			<CardContent className="p-4">
-				<div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-				<div className={`mt-2 text-2xl font-semibold ${toneClass}`}>{value}</div>
-				<div className="mt-1 text-xs text-muted-foreground">{helper}</div>
+		<Card className={cn("min-w-0 bg-background/70", className)}>
+			<CardContent className={cn(compact ? "p-3" : "p-4")}>
+				<div className="min-w-0 hyphens-auto break-words text-xs font-medium tracking-wide text-muted-foreground uppercase leading-snug">
+					{label}
+				</div>
+				<div className={cn(`mt-2 font-semibold ${toneClass}`, compact ? "text-xl" : "text-2xl")}>{value}</div>
+				<div className="mt-1 min-w-0 hyphens-auto break-words text-xs text-muted-foreground leading-snug">{helper}</div>
 			</CardContent>
 		</Card>
 	);

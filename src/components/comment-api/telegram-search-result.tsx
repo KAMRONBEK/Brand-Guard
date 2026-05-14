@@ -15,6 +15,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/ui/collap
 import { Text, Title } from "@/ui/typography";
 import { cn } from "@/utils";
 import { isTelegramGroupedPostsObject } from "@/utils/mergeSearchStreamChunk";
+import { AdviceRichBody } from "./advice-rich-body";
 import { MetricCard, RawJsonDetails } from "./api-result";
 import { CollapsibleText } from "./social-feed/collapsible-text";
 import { FlatCommentTimeline } from "./social-feed/comment-thread";
@@ -163,6 +164,190 @@ function stableAdviceExampleKey(issueTopic: string | undefined, ex: TelegramSear
 	return `${issueTopic ?? "issue"}-${h}`;
 }
 
+export function TelegramSearchAdviceTimingPanel({
+	advice: adviceRaw,
+	timing: timingRaw,
+}: {
+	advice: unknown;
+	timing: unknown;
+}) {
+	const { t } = useTranslation();
+	const advice = isRecord(adviceRaw) ? adviceRaw : undefined;
+	const summary = typeof advice?.summary === "string" ? advice.summary : undefined;
+	const issues = Array.isArray(advice?.issues) ? (advice.issues as TelegramSearchAdviceIssue[]) : [];
+	const timing = isRecord(timingRaw) ? timingRaw : undefined;
+
+	const hasAdviceBody = Boolean(summary?.trim()) || issues.length > 0;
+	const hasTiming = timing !== undefined && Object.keys(timing).length > 0;
+
+	return (
+		<>
+			{hasAdviceBody ? (
+				<section className="mt-10 space-y-6 sm:mt-12" aria-labelledby="telegram-ai-advice-heading">
+					<h2 id="telegram-ai-advice-heading" className="sr-only">
+						{t("sys.telegramSearch.result.aiGeneratedBadge")}
+					</h2>
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+						<div className="flex flex-wrap items-center gap-2">
+							<Badge
+								variant="outline"
+								className="gap-1.5 border-violet-500/30 bg-violet-500/10 py-1 pr-2.5 pl-2 dark:border-violet-400/35"
+							>
+								<Icon
+									icon="mdi:sparkles"
+									size={14}
+									className="shrink-0 text-violet-600 dark:text-violet-400"
+									aria-hidden
+								/>
+								{t("sys.telegramSearch.result.aiGeneratedBadge")}
+							</Badge>
+						</div>
+						<p className="max-w-2xl text-xs leading-relaxed text-muted-foreground md:max-w-md md:text-end">
+							{t("sys.telegramSearch.result.aiAdviceZoneDisclaimer")}
+						</p>
+					</div>
+
+					<div className="flex flex-col gap-6">
+						{summary?.trim() ? (
+							<div className="rounded-2xl bg-muted/20 px-5 py-5 dark:bg-muted/10">
+								<h3 className="text-base leading-tight font-semibold tracking-tight">
+									{t("sys.telegramSearch.result.adviceSummaryTitle")}
+								</h3>
+								<div className="mt-4">
+									<AdviceRichBody text={summary} className="max-w-none text-[0.9625rem] leading-[1.72]" />
+								</div>
+							</div>
+						) : null}
+
+						{issues.length > 0 ? (
+							<div>
+								<Title as="h3" className="mb-4 text-lg font-semibold">
+									{t("sys.telegramSearch.result.issuesTitle")}
+								</Title>
+								<div className="flex flex-col divide-y divide-border/50">
+									{issues.map((issue, issueIndex) => (
+										<article
+											key={`${issue.topic ?? "issue"}-${issueIndex}`}
+											className="space-y-5 py-7 first:pt-0 last:pb-0"
+										>
+											<div className="space-y-1.5">
+												<h4 className="text-[1.05rem] leading-snug font-semibold tracking-tight">
+													{issue.topic ?? t("sys.telegramSearch.result.issueFallbackTitle")}
+												</h4>
+												{issue.evidence_count != null && (
+													<Text variant="caption" className="text-muted-foreground">
+														{t("sys.telegramSearch.result.evidenceCount", { count: issue.evidence_count })}
+													</Text>
+												)}
+											</div>
+
+											{issue.description || issue.suggested_action ? (
+												<div
+													className={cn(
+														"grid gap-4",
+														issue.description && issue.suggested_action && "md:grid-cols-2 md:items-start md:gap-5",
+													)}
+												>
+													{issue.description ? (
+														<div className="rounded-xl bg-muted/25 px-4 py-4 dark:bg-muted/10">
+															<p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+																{t("sys.telegramSearch.result.issueDescription")}
+															</p>
+															<AdviceRichBody text={issue.description} className="max-w-none" />
+														</div>
+													) : null}
+
+													{issue.suggested_action ? (
+														<div className="rounded-xl border-primary/45 border-l-[3px] bg-primary/[0.05] px-4 py-4 dark:bg-primary/[0.08]">
+															<p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">
+																{t("sys.telegramSearch.result.suggestedAction")}
+															</p>
+															<AdviceRichBody text={issue.suggested_action} className="max-w-none text-foreground/95" />
+														</div>
+													) : null}
+												</div>
+											) : null}
+
+											{Array.isArray(issue.worldwide_examples) && issue.worldwide_examples.length > 0 ? (
+												<Collapsible defaultOpen={issueIndex === 0}>
+													<CollapsibleTrigger asChild>
+														<button
+															type="button"
+															className="group flex w-full items-center justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2.5 text-left text-sm font-semibold tracking-tight text-foreground transition-colors hover:bg-muted/45 dark:bg-muted/20 dark:hover:bg-muted/30"
+														>
+															{t("sys.telegramSearch.result.examplesToggle", {
+																count: issue.worldwide_examples.length,
+															})}
+															<Icon
+																icon="mdi:chevron-down"
+																className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180"
+																aria-hidden
+															/>
+														</button>
+													</CollapsibleTrigger>
+													<CollapsibleContent className="mt-4 data-[state=closed]:animate-none">
+														<div className="grid gap-4 md:grid-cols-2 md:items-start md:gap-5">
+															{(issue.worldwide_examples as TelegramSearchAdviceExample[]).map((ex) => (
+																<div
+																	key={stableAdviceExampleKey(issue.topic, ex)}
+																	className="space-y-4 rounded-xl border border-border/50 bg-muted/15 px-3 py-3 dark:bg-muted/10"
+																>
+																	{ex.country ? (
+																		<div className="space-y-2">
+																			<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+																				{t("sys.telegramSearch.result.exampleCountry")}
+																			</p>
+																			<p className="font-medium leading-snug tracking-tight">{ex.country}</p>
+																		</div>
+																	) : null}
+																	{ex.solution ? (
+																		<div className="space-y-2 border-border/35 border-l-2 pl-3">
+																			<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+																				{t("sys.telegramSearch.result.exampleSolution")}
+																			</p>
+																			<AdviceRichBody text={ex.solution} className="max-w-none" />
+																		</div>
+																	) : null}
+																	{ex.adaptation ? (
+																		<div className="space-y-2 border-border/35 border-l-2 pl-3">
+																			<p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+																				{t("sys.telegramSearch.result.exampleAdaptation")}
+																			</p>
+																			<AdviceRichBody text={ex.adaptation} className="max-w-none" />
+																		</div>
+																	) : null}
+																</div>
+															))}
+														</div>
+													</CollapsibleContent>
+												</Collapsible>
+											) : null}
+										</article>
+									))}
+								</div>
+							</div>
+						) : null}
+					</div>
+				</section>
+			) : null}
+
+			{hasTiming ? (
+				<details className={cn("rounded-xl border border-border/60 bg-muted/15 p-4 text-sm", hasAdviceBody && "mt-6")}>
+					<summary className="cursor-pointer font-medium">{t("sys.telegramSearch.result.timingTitle")}</summary>
+					<dl className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+						{Object.entries(timing).map(([key, ms]) => (
+							<div key={key} className="flex flex-col rounded-lg border border-border/50 bg-background/60 px-3 py-2">
+								<dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{key}</dt>
+								<dd className="font-mono text-sm">{typeof ms === "number" ? `${ms} ms` : String(ms)}</dd>
+							</div>
+						))}
+					</dl>
+				</details>
+			) : null}
+		</>
+	);
+}
+
 function postsForSentiment(
 	postsRoot: unknown,
 	sentiment: (typeof POST_GROUP_ORDER)[number],
@@ -211,9 +396,10 @@ function TelegramPostCommentsSection({ post }: { post: TelegramSearchStreamPost 
 					<Text variant="caption" className="mb-2 block font-medium text-muted-foreground">
 						{t("sys.telegramSearch.result.commentsStatsTitle")}
 					</Text>
-					<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+					<div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,9.5rem),1fr))]">
 						{mergedStats.total != null && mergedStats.total > 0 && (
 							<MetricCard
+								compact
 								label={t("sys.telegramSearch.result.commentsTotalLabel")}
 								value={mergedStats.total}
 								helper={t("sys.telegramSearch.result.onThisPost")}
@@ -221,6 +407,7 @@ function TelegramPostCommentsSection({ post }: { post: TelegramSearchStreamPost 
 						)}
 						{(mergedStats.positive ?? 0) > 0 && (
 							<MetricCard
+								compact
 								label={t("sys.commentApi.sentiment.positive")}
 								value={mergedStats.positive ?? 0}
 								helper={`${t("sys.telegramSearch.result.inThisPeriod")}${pctSuffix(mergedStats.positive_pct)}`}
@@ -229,6 +416,7 @@ function TelegramPostCommentsSection({ post }: { post: TelegramSearchStreamPost 
 						)}
 						{(mergedStats.negative ?? 0) > 0 && (
 							<MetricCard
+								compact
 								label={t("sys.commentApi.sentiment.negative")}
 								value={mergedStats.negative ?? 0}
 								helper={`${t("sys.telegramSearch.result.inThisPeriod")}${pctSuffix(mergedStats.negative_pct)}`}
@@ -237,6 +425,7 @@ function TelegramPostCommentsSection({ post }: { post: TelegramSearchStreamPost 
 						)}
 						{(mergedStats.neutral ?? 0) > 0 && (
 							<MetricCard
+								compact
 								label={t("sys.commentApi.sentiment.neutral")}
 								value={mergedStats.neutral ?? 0}
 								helper={`${t("sys.telegramSearch.result.inThisPeriod")}${pctSuffix(mergedStats.neutral_pct)}`}
@@ -269,7 +458,20 @@ function TelegramPostCommentsSection({ post }: { post: TelegramSearchStreamPost 
 	);
 }
 
-export function TelegramSearchResultView({ value }: { value: unknown }) {
+export function TelegramSearchResultView({
+	value,
+	hideQuerySummary,
+	omitRawJson,
+	hideStatsSummary,
+}: {
+	value: unknown;
+	/** When true, omit the query recap card (e.g. embedded in unified multi-platform results). */
+	hideQuerySummary?: boolean;
+	/** When true, omit technical JSON details (parent view may show one combined payload). */
+	omitRawJson?: boolean;
+	/** When true, omit sentiment count grid (aggregate dashboard already showed these). */
+	hideStatsSummary?: boolean;
+}) {
 	const { t } = useTranslation();
 	if (!isRecord(value)) return null;
 
@@ -281,62 +483,60 @@ export function TelegramSearchResultView({ value }: { value: unknown }) {
 	const pos = toNumber(stats?.positive);
 	const neg = toNumber(stats?.negative);
 	const neu = toNumber(stats?.neutral);
-	const advice = isRecord(value.advice) ? value.advice : undefined;
-	const summary = typeof advice?.summary === "string" ? advice.summary : undefined;
-	const issues = Array.isArray(advice?.issues) ? (advice.issues as TelegramSearchAdviceIssue[]) : [];
 	const failed = normalizeFailedChannels(value.failed_channels);
-	const timing = isRecord(value.timing_ms) ? value.timing_ms : undefined;
 
 	const hasPostGroups = POST_GROUP_ORDER.some((s) => postsForSentiment(value.posts, s).length > 0);
 
 	return (
 		<div className="flex flex-col gap-4">
-			<Card className="border-border/80 bg-gradient-to-br from-primary/5 via-background to-background">
-				<CardHeader className="pb-2">
-					<CardTitle className="text-base">{t("sys.telegramSearch.result.queryTitle")}</CardTitle>
-				</CardHeader>
-				<CardContent className="flex flex-col gap-3">
-					<div>
-						<Text variant="caption" className="mb-1.5 font-medium text-muted-foreground">
-							{t("sys.telegramSearch.result.keywordsHeading")}
-						</Text>
-						<div className="flex flex-wrap gap-1.5">
-							{keywords.length === 0 ? (
-								<span className="text-sm text-muted-foreground">—</span>
-							) : (
-								keywords.map((kw) => (
-									<Badge key={kw} variant="secondary" className="font-normal">
-										{kw}
-									</Badge>
-								))
-							)}
+			{!hideQuerySummary ? (
+				<Card className="border-border/80 bg-gradient-to-br from-primary/5 via-background to-background">
+					<CardHeader className="pb-2">
+						<CardTitle className="text-base">{t("sys.telegramSearch.result.queryTitle")}</CardTitle>
+					</CardHeader>
+					<CardContent className="flex flex-col gap-3">
+						<div>
+							<Text variant="caption" className="mb-1.5 font-medium text-muted-foreground">
+								{t("sys.telegramSearch.result.keywordsHeading")}
+							</Text>
+							<div className="flex flex-wrap gap-1.5">
+								{keywords.length === 0 ? (
+									<span className="text-sm text-muted-foreground">—</span>
+								) : (
+									keywords.map((kw) => (
+										<Badge key={kw} variant="secondary" className="font-normal">
+											{kw}
+										</Badge>
+									))
+								)}
+							</div>
 						</div>
-					</div>
-					<div>
-						<Text variant="caption" className="mb-1.5 font-medium text-muted-foreground">
-							{t("sys.telegramSearch.result.channelsHeading")}
-						</Text>
-						<div className="flex flex-wrap gap-1.5">
-							{channels.length === 0 ? (
-								<span className="text-sm text-muted-foreground">—</span>
-							) : (
-								channels.map((ch) => (
-									<Badge key={ch} variant="outline" className="font-mono text-xs font-normal">
-										{ch}
-									</Badge>
-								))
-							)}
+						<div>
+							<Text variant="caption" className="mb-1.5 font-medium text-muted-foreground">
+								{t("sys.telegramSearch.result.channelsHeading")}
+							</Text>
+							<div className="flex flex-wrap gap-1.5">
+								{channels.length === 0 ? (
+									<span className="text-sm text-muted-foreground">—</span>
+								) : (
+									channels.map((ch) => (
+										<Badge key={ch} variant="outline" className="font-mono text-xs font-normal">
+											{ch}
+										</Badge>
+									))
+								)}
+							</div>
 						</div>
-					</div>
-					{periodHours != null && (
-						<p className="text-sm text-muted-foreground">
-							{t("sys.telegramSearch.result.periodLabel", { hours: periodHours })}
-						</p>
-					)}
-				</CardContent>
-			</Card>
+						{periodHours != null && (
+							<p className="text-sm text-muted-foreground">
+								{t("sys.telegramSearch.result.periodLabel", { hours: periodHours })}
+							</p>
+						)}
+					</CardContent>
+				</Card>
+			) : null}
 
-			{stats && (totalPosts != null || pos != null || neg != null || neu != null) && (
+			{!hideStatsSummary && stats && (totalPosts != null || pos != null || neg != null || neu != null) && (
 				<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 					<MetricCard
 						label={t("sys.telegramSearch.result.totalPosts")}
@@ -413,10 +613,12 @@ export function TelegramSearchResultView({ value }: { value: unknown }) {
 										</Badge>
 									</CardTitle>
 								</CardHeader>
-								<CardContent className="flex flex-col gap-4 pt-4">
+								<CardContent className="grid grid-cols-1 gap-4 pt-4 md:grid-cols-2 xl:grid-cols-3">
 									{posts.map((post, index) => (
 										<PostCardShell
 											key={post.url ?? `${sentiment}-${index}`}
+											className="min-w-0"
+											dense
 											platform="telegram"
 											headline={post.channel_title ?? "—"}
 											datetimeLine={formatWhen(post.date)}
@@ -447,7 +649,7 @@ export function TelegramSearchResultView({ value }: { value: unknown }) {
 										>
 											{post.views != null ? <MetricsChipsRow views={post.views} /> : null}
 											{post.text?.trim() ? (
-												<CollapsibleText text={post.text} />
+												<CollapsibleText text={post.text} clampClassName="line-clamp-3" />
 											) : (
 												<p className="text-sm text-muted-foreground">—</p>
 											)}
@@ -461,121 +663,9 @@ export function TelegramSearchResultView({ value }: { value: unknown }) {
 				</div>
 			)}
 
-			{summary && (
-				<Card className="border-primary/20 bg-primary/5">
-					<CardHeader className="pb-2">
-						<CardTitle className="text-base">{t("sys.telegramSearch.result.adviceSummaryTitle")}</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<p className="text-sm leading-relaxed whitespace-pre-wrap">{summary}</p>
-					</CardContent>
-				</Card>
-			)}
+			<TelegramSearchAdviceTimingPanel advice={value.advice} timing={value.timing_ms} />
 
-			{issues.length > 0 && (
-				<div className="flex flex-col gap-3">
-					<Title as="h3" className="text-lg font-semibold">
-						{t("sys.telegramSearch.result.issuesTitle")}
-					</Title>
-					{issues.map((issue, issueIndex) => (
-						<Card key={`${issue.topic ?? "issue"}-${issueIndex}`} className="border-border/80 bg-background/70">
-							<CardHeader className="pb-2">
-								<CardTitle className="text-base leading-snug">
-									{issue.topic ?? t("sys.telegramSearch.result.issueFallbackTitle")}
-								</CardTitle>
-								{issue.evidence_count != null && (
-									<Text variant="caption" className="text-muted-foreground">
-										{t("sys.telegramSearch.result.evidenceCount", { count: issue.evidence_count })}
-									</Text>
-								)}
-							</CardHeader>
-							<CardContent className="flex flex-col gap-4">
-								{issue.description && (
-									<div>
-										<p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-											{t("sys.telegramSearch.result.issueDescription")}
-										</p>
-										<p className="text-sm leading-relaxed whitespace-pre-wrap">{issue.description}</p>
-									</div>
-								)}
-								{issue.suggested_action && (
-									<div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-										<p className="mb-1 text-xs font-medium uppercase tracking-wide text-primary">
-											{t("sys.telegramSearch.result.suggestedAction")}
-										</p>
-										<p className="text-sm leading-relaxed whitespace-pre-wrap">{issue.suggested_action}</p>
-									</div>
-								)}
-								{Array.isArray(issue.worldwide_examples) && issue.worldwide_examples.length > 0 && (
-									<Collapsible defaultOpen={issueIndex === 0}>
-										<CollapsibleTrigger asChild>
-											<Button type="button" variant="outline" size="sm" className="group w-full justify-between gap-2">
-												{t("sys.telegramSearch.result.examplesToggle", { count: issue.worldwide_examples.length })}
-												<Icon
-													icon="mdi:chevron-down"
-													className="shrink-0 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180"
-													aria-hidden
-												/>
-											</Button>
-										</CollapsibleTrigger>
-										<CollapsibleContent className="space-y-3 pt-3">
-											{(issue.worldwide_examples as TelegramSearchAdviceExample[]).map((ex) => (
-												<Card
-													key={stableAdviceExampleKey(issue.topic, ex)}
-													className="border-muted/80 bg-muted/20 shadow-none"
-												>
-													<CardContent className="space-y-2 p-4 text-sm">
-														{ex.country && (
-															<div>
-																<span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-																	{t("sys.telegramSearch.result.exampleCountry")}
-																</span>
-																<p className="mt-0.5 font-medium">{ex.country}</p>
-															</div>
-														)}
-														{ex.solution && (
-															<div>
-																<span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-																	{t("sys.telegramSearch.result.exampleSolution")}
-																</span>
-																<p className="mt-0.5 leading-relaxed whitespace-pre-wrap">{ex.solution}</p>
-															</div>
-														)}
-														{ex.adaptation && (
-															<div>
-																<span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-																	{t("sys.telegramSearch.result.exampleAdaptation")}
-																</span>
-																<p className="mt-0.5 leading-relaxed whitespace-pre-wrap">{ex.adaptation}</p>
-															</div>
-														)}
-													</CardContent>
-												</Card>
-											))}
-										</CollapsibleContent>
-									</Collapsible>
-								)}
-							</CardContent>
-						</Card>
-					))}
-				</div>
-			)}
-
-			{timing && Object.keys(timing).length > 0 && (
-				<details className="rounded-xl border border-border/60 bg-muted/15 p-4 text-sm">
-					<summary className="cursor-pointer font-medium">{t("sys.telegramSearch.result.timingTitle")}</summary>
-					<dl className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-						{Object.entries(timing).map(([key, ms]) => (
-							<div key={key} className="flex flex-col rounded-lg border border-border/50 bg-background/60 px-3 py-2">
-								<dt className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{key}</dt>
-								<dd className="font-mono text-sm">{typeof ms === "number" ? `${ms} ms` : String(ms)}</dd>
-							</div>
-						))}
-					</dl>
-				</details>
-			)}
-
-			<RawJsonDetails value={value} />
+			{omitRawJson ? null : <RawJsonDetails value={value} />}
 		</div>
 	);
 }
