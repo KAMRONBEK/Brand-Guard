@@ -11,6 +11,11 @@ export const frontendNavData: NavProps["data"] = [
 				icon: <Icon icon="local:ic-workbench" size="24" />,
 				children: [
 					{
+						title: "sys.nav.platformsSearch",
+						path: "/platforms-search",
+						icon: <Icon icon="mdi:earth" size={18} />,
+					},
+					{
 						title: "sys.nav.telegramSearch",
 						path: "/telegram-search",
 						icon: <Icon icon="mdi:telegram" size={18} />,

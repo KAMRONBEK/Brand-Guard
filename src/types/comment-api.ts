@@ -134,6 +134,17 @@ export interface TelegramSearchRequest {
 	period_hours?: number;
 }
 
+/** Body for POST /api/platforms/search and /api/platforms/search/stream (comment-api unified search). */
+export interface PlatformsUnifiedSearchRequest {
+	keywords: string[];
+	channels: string[];
+	period_hours?: number;
+	language?: string;
+	bilingual?: boolean;
+	include_comments?: boolean;
+	max_comments_per_post?: number;
+}
+
 /** Telegram comment hit inside a post payload (Swagger `internal_handler_telegram.CommentHit`). */
 export interface TelegramSearchCommentHit {
 	username?: string;
@@ -185,6 +196,37 @@ export interface TelegramSearchAdviceIssue {
 export interface TelegramSearchAdvice {
 	summary?: string;
 	issues?: TelegramSearchAdviceIssue[];
+}
+
+/** Aggregate stats slice with optional per-platform breakdown (unified platforms search response). */
+export interface PlatformsUnifiedStatsSlice {
+	total?: number;
+	positive?: number;
+	negative?: number;
+	neutral?: number;
+	total_posts?: number;
+	positive_pct?: number;
+	negative_pct?: number;
+	neutral_pct?: number;
+	telegram?: SentimentCounts & { total_posts?: number };
+	instagram?: SentimentCounts & { total_posts?: number };
+	facebook?: SentimentCounts & { total_posts?: number };
+}
+
+/**
+ * Loose root shape after streaming merge; nested `posts` buckets are telegram-style grouped maps.
+ */
+export interface PlatformsUnifiedSearchResponseRoot {
+	keywords?: string[];
+	expanded_keywords?: string[];
+	period_hours?: number;
+	channels?: string[];
+	stats?: PlatformsUnifiedStatsSlice;
+	telegram?: Record<string, unknown>;
+	instagram?: Record<string, unknown>;
+	facebook?: Record<string, unknown>;
+	advice?: TelegramSearchAdvice;
+	timing_ms?: Record<string, number>;
 }
 
 export interface FetchRequest {

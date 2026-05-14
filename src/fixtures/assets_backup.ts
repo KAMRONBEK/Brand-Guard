@@ -21,6 +21,16 @@ export const DB_MENU: Menu[] = [
 		component: "/pages/dashboard/workbench",
 	},
 	{
+		id: "platforms_search",
+		parentId: "group_dashboard",
+		name: "sys.nav.platformsSearch",
+		code: "platforms_search",
+		icon: "mdi:earth",
+		type: MENU,
+		path: "/platforms-search",
+		component: "/pages/dashboard/platforms-search",
+	},
+	{
 		id: "telegram_search",
 		parentId: "group_dashboard",
 		name: "sys.nav.telegramSearch",

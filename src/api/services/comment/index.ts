@@ -5,5 +5,6 @@ export { default as commentCommentsService } from "./commentsService";
 export { default as commentFacebookService } from "./facebookService";
 export { default as commentHealthService } from "./healthService";
 export { default as commentMonitorsService } from "./monitorsService";
+export { default as commentPlatformsService } from "./platformsService";
 export { default as commentSearchService } from "./searchService";
 export { default as commentTelegramService } from "./telegramService";
