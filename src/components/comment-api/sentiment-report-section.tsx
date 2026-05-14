@@ -30,29 +30,34 @@ export function SentimentReportSection() {
 			platform="Instagram"
 			intent={t("sys.analysis.intent.report")}
 		>
-			<div className="space-y-2">
-				<Label htmlFor="stats-url">{t("sys.analysis.instagramPostUrlLabel")}</Label>
-				<Input
-					id="stats-url"
-					value={statsPostUrl}
-					onChange={(event) => setStatsPostUrl(event.target.value)}
-					placeholder={t("sys.analysis.postUrlPlaceholder")}
-				/>
-			</div>
-			<div className="flex flex-wrap gap-2">
-				<Button
-					variant="secondary"
-					disabled={!statsPostUrl.trim() || exportMutation.isPending}
-					onClick={() => exportMutation.mutate("json")}
-				>
-					{t("sys.analysis.exportJson")}
-				</Button>
-				<Button
-					disabled={!statsPostUrl.trim() || exportMutation.isPending}
-					onClick={() => exportMutation.mutate("csv")}
-				>
-					{t("sys.analysis.exportCsv")}
-				</Button>
+			<div className="flex flex-col gap-4">
+				<div className="rounded-xl border border-border/80 bg-muted/25 px-4 py-3">
+					<div className="space-y-2">
+						<Label htmlFor="stats-url">{t("sys.analysis.instagramPostUrlLabel")}</Label>
+						<Input
+							id="stats-url"
+							value={statsPostUrl}
+							onChange={(event) => setStatsPostUrl(event.target.value)}
+							placeholder={t("sys.analysis.postUrlPlaceholder")}
+						/>
+					</div>
+				</div>
+				<div className="flex flex-wrap gap-2">
+					<Button
+						variant="outline"
+						disabled={!statsPostUrl.trim() || exportMutation.isPending}
+						onClick={() => exportMutation.mutate("json")}
+					>
+						{t("sys.analysis.exportJson")}
+					</Button>
+					<Button
+						className="w-full sm:w-auto"
+						disabled={!statsPostUrl.trim() || exportMutation.isPending}
+						onClick={() => exportMutation.mutate("csv")}
+					>
+						{t("sys.analysis.exportCsv")}
+					</Button>
+				</div>
 			</div>
 			<ApiLongRunningNotice active={exportMutation.isPending} storageKey="analysis-stats" />
 			{exportMutation.isError && <ApiJsonPreview value={exportMutation.error} />}
