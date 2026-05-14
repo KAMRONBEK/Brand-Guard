@@ -6,16 +6,17 @@ import { ApiResultView } from "@/components/comment-api/api-result";
 import { WorkflowShell } from "@/components/comment-api/executive-ui";
 import { SearchStreamProgress, type SearchStreamStepRow } from "@/components/comment-api/search-stream-progress";
 import { isTelegramSearchPayload, TelegramSearchResultView } from "@/components/comment-api/telegram-search-result";
+import { MultiValueChipInput } from "@/components/form/multi-value-chip-input";
 import Icon from "@/components/icon/icon";
 import { PeriodHoursPresetSelect } from "@/components/period-hours-preset-select";
 import { DEFAULT_COMMENT_API_LANGUAGE_HINT } from "@/constants/api-defaults";
 import type { TelegramSearchRequest } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
-import { Checkbox } from "@/ui/checkbox";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
-import { Textarea } from "@/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
+import { Switch } from "@/ui/switch";
 import { Text, Title } from "@/ui/typography";
 import { getSearchStreamProgressStep, mergeSearchStreamChunk } from "@/utils/mergeSearchStreamChunk";
 import {
@@ -30,11 +31,18 @@ const TELEGRAM_SEARCH_MAX_PER_HIT = 150;
 const TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST = 25;
 const TELEGRAM_DEFAULT_MIN_NEGATIVE_COMMENT_RATIO = 0.5;
 
-function linesToList(value: string): string[] {
-	return value
-		.split("\n")
-		.map((item) => item.trim())
-		.filter(Boolean);
+const LANGUAGE_SELECT_OMIT = "__language_omit__" as const;
+const TELEGRAM_LANGUAGE_CODES = ["ru", "en", "uz"] as const;
+
+/** Plain usernames become @handles; URLs and explicit @handles are unchanged. */
+function normalizeTelegramChannelSegment(segment: string): string {
+	const s = segment.trim();
+	if (s === "") return s;
+	const lower = s.toLowerCase();
+	if (lower.startsWith("http://") || lower.startsWith("https://")) return s;
+	if (lower.startsWith("t.me/") || lower.startsWith("telegram.me/")) return s;
+	if (s.startsWith("@")) return s;
+	return `@${s}`;
 }
 
 export default function TelegramSearchPage() {
@@ -48,9 +56,9 @@ export default function TelegramSearchPage() {
 		staleTime: CACHE_TIME,
 	});
 
-	const [keywordsText, setKeywordsText] = useState("");
-	const [channelsText, setChannelsText] = useState("");
-	const [periodHours, setPeriodHours] = useState(24);
+	const [keywords, setKeywords] = useState<string[]>([]);
+	const [channels, setChannels] = useState<string[]>([]);
+	const [periodHours, setPeriodHours] = useState(168);
 	const [language, setLanguage] = useState(DEFAULT_COMMENT_API_LANGUAGE_HINT);
 	const [includeComments, setIncludeComments] = useState(false);
 	const [maxCommentsPerPost, setMaxCommentsPerPost] = useState<OptionalFiniteNumber>(
@@ -62,6 +70,8 @@ export default function TelegramSearchPage() {
 	const [resultData, setResultData] = useState<unknown>();
 	const [streaming, setStreaming] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
+	/** Hides the dashed “run workflow above” card after the user has started a search (avoids flash when `streaming` clears before merged data exists). */
+	const [hasStartedTelegramSearch, setHasStartedTelegramSearch] = useState(false);
 
 	useEffect(() => {
 		return () => {
@@ -69,8 +79,8 @@ export default function TelegramSearchPage() {
 		};
 	}, []);
 
-	const keywords = linesToList(keywordsText);
-	const channels = linesToList(channelsText);
+	const languageSelectValue = language.trim() === "" ? LANGUAGE_SELECT_OMIT : language.trim();
+
 	const canRun =
 		keywords.length > 0 && channels.length > 0 && !streaming && (!includeComments || maxCommentsPerPost !== "");
 
@@ -101,6 +111,7 @@ export default function TelegramSearchPage() {
 		abortRef.current = ac;
 		setError(null);
 		setResultData(undefined);
+		setHasStartedTelegramSearch(true);
 		streamStepIdRef.current = 0;
 		setStreamSteps([]);
 		setStreaming(true);
@@ -172,73 +183,115 @@ export default function TelegramSearchPage() {
 				platform="Telegram"
 				intent={t("sys.workbench.intent.discovery")}
 			>
-				<div className="grid gap-3 lg:grid-cols-2">
-					<div className="space-y-2 lg:col-span-2">
-						<Label htmlFor="tg-keywords">{t("sys.telegramSearch.keywordsLabel")}</Label>
-						<Textarea
+				<div className="flex flex-col gap-4">
+					<div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-5">
+						<MultiValueChipInput
+							className="min-w-0"
 							id="tg-keywords"
-							className="min-h-[88px]"
-							value={keywordsText}
-							onChange={(event) => setKeywordsText(event.target.value)}
+							label={t("sys.telegramSearch.keywordsLabel")}
+							hint={t("sys.telegramSearch.chipCommitHint")}
+							values={keywords}
+							onChange={setKeywords}
 							placeholder={t("sys.telegramSearch.keywordsPlaceholder")}
+							disabled={streaming}
+							removeItemAriaLabel={(value) => t("sys.telegramSearch.removeChipAria", { value })}
 						/>
-					</div>
-					<div className="space-y-2 lg:col-span-2">
-						<Label htmlFor="tg-channels">{t("sys.telegramSearch.channelsLabel")}</Label>
-						<Textarea
+						<MultiValueChipInput
+							className="min-w-0"
 							id="tg-channels"
-							className="min-h-[88px]"
-							value={channelsText}
-							onChange={(event) => setChannelsText(event.target.value)}
+							label={t("sys.telegramSearch.channelsLabel")}
+							hint={t("sys.telegramSearch.chipCommitHint")}
+							values={channels}
+							onChange={setChannels}
+							normalizeSegment={normalizeTelegramChannelSegment}
 							placeholder={t("sys.telegramSearch.channelsPlaceholder")}
+							disabled={streaming}
+							removeItemAriaLabel={(value) => t("sys.telegramSearch.removeChipAria", { value })}
 						/>
 					</div>
-					<div className="space-y-2 lg:col-span-2">
-						<div className="flex items-center gap-2">
-							<Checkbox
-								id="tg-include-comments"
-								checked={includeComments}
-								onCheckedChange={(checked) => setIncludeComments(checked === true)}
-							/>
-							<Label htmlFor="tg-include-comments" className="cursor-pointer font-normal">
-								{t("sys.telegramSearch.includeCommentsLabel")}
-							</Label>
+					<div className="grid gap-4 lg:grid-cols-2 lg:items-start lg:gap-5">
+						<div
+							className={
+								streaming
+									? "pointer-events-none flex min-h-0 w-full min-w-0 flex-col gap-3 rounded-xl border border-border/80 bg-muted/25 px-4 py-3 opacity-70"
+									: "flex min-h-0 w-full min-w-0 flex-col gap-3 rounded-xl border border-border/80 bg-muted/25 px-4 py-3"
+							}
+						>
+							<label
+								htmlFor="tg-include-comments"
+								className="flex cursor-pointer flex-row items-start justify-between gap-3 select-none sm:items-center"
+							>
+								<div className="min-w-0 flex-1 space-y-0.5 pr-2">
+									<span className="block text-sm font-medium leading-none">
+										{t("sys.telegramSearch.includeCommentsLabel")}
+									</span>
+									<span className="block text-xs font-normal text-muted-foreground">
+										{t("sys.telegramSearch.includeCommentsHint")}
+									</span>
+								</div>
+								<Switch
+									id="tg-include-comments"
+									checked={includeComments}
+									onCheckedChange={(checked) => setIncludeComments(checked === true)}
+									disabled={streaming}
+									className="mt-1 shrink-0 sm:mt-0"
+								/>
+							</label>
+							<div
+								className={`flex w-full min-w-0 max-w-[8.5rem] flex-col gap-1.5 border-t border-border/60 pt-3 ${includeComments ? "" : "opacity-40"}`}
+							>
+								<Label htmlFor="tg-max-comments" className="text-sm leading-tight text-muted-foreground">
+									{t("sys.telegramSearch.maxCommentsPerPostShortLabel")}
+								</Label>
+								<Input
+									id="tg-max-comments"
+									type="number"
+									min={1}
+									className="h-9 w-full sm:w-24"
+									value={optionalFiniteNumberDisplay(maxCommentsPerPost)}
+									onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setMaxCommentsPerPost)}
+									placeholder={t("sys.telegramSearch.maxCommentsPerPostPlaceholder")}
+									disabled={streaming || !includeComments}
+								/>
+							</div>
 						</div>
-						<Text variant="caption" className="text-muted-foreground">
-							{t("sys.telegramSearch.includeCommentsHint")}
-						</Text>
-					</div>
-					<PeriodHoursPresetSelect
-						id="tg-ph"
-						label={t("sys.telegramSearch.periodHoursLabel")}
-						value={periodHours}
-						onHoursChange={setPeriodHours}
-						disabled={streaming}
-					/>
-					{includeComments ? (
-						<div className="space-y-2">
-							<Label htmlFor="tg-max-comments">{t("sys.telegramSearch.maxCommentsPerPostLabel")}</Label>
-							<Input
-								id="tg-max-comments"
-								type="number"
-								min={1}
-								value={optionalFiniteNumberDisplay(maxCommentsPerPost)}
-								onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setMaxCommentsPerPost)}
-								placeholder={t("sys.telegramSearch.maxCommentsPerPostPlaceholder")}
-							/>
+
+						<div className="flex min-w-0 w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3">
+							<div className="w-full min-w-0 flex-1 sm:min-w-[10rem] sm:max-w-[220px]">
+								<PeriodHoursPresetSelect
+									id="tg-ph"
+									label={t("sys.telegramSearch.periodHoursLabel")}
+									value={periodHours}
+									onHoursChange={setPeriodHours}
+									disabled={streaming}
+								/>
+							</div>
+							<div className="w-full min-w-0 flex-1 space-y-2 sm:min-w-[9rem] sm:max-w-[180px]">
+								<Label htmlFor="tg-lang-select" className="text-sm">
+									{t("sys.telegramSearch.languageLabel")}
+								</Label>
+								<Select
+									disabled={streaming}
+									value={languageSelectValue}
+									onValueChange={(next) => setLanguage(next === LANGUAGE_SELECT_OMIT ? "" : next)}
+								>
+									<SelectTrigger id="tg-lang-select" className="h-9 w-full min-w-0">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent position="popper" className="w-[var(--radix-select-trigger-width)]">
+										<SelectItem value={LANGUAGE_SELECT_OMIT}>{t("sys.telegramSearch.languageOption.omit")}</SelectItem>
+										{TELEGRAM_LANGUAGE_CODES.map((code) => (
+											<SelectItem key={code} value={code}>
+												{t(`sys.telegramSearch.languageOption.${code}`)}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
 						</div>
-					) : null}
-					<div className="space-y-2 lg:col-span-2">
-						<Label htmlFor="tg-lang">{t("sys.telegramSearch.languageLabel")}</Label>
-						<Input
-							id="tg-lang"
-							value={language}
-							onChange={(event) => setLanguage(event.target.value)}
-							placeholder={t("sys.telegramSearch.languagePlaceholder")}
-						/>
 					</div>
 				</div>
-				<Button disabled={!canRun} onClick={runSearch}>
+				<Button className="w-full sm:w-auto" disabled={!canRun} onClick={runSearch}>
 					{streaming ? t("sys.telegramSearch.running") : t("sys.telegramSearch.run")}
 				</Button>
 				<SearchStreamProgress
@@ -250,7 +303,11 @@ export default function TelegramSearchPage() {
 					runningLabel={t("sys.telegramSearch.running")}
 					steps={streamSteps}
 				/>
-				{showTelegramRich ? <TelegramSearchResultView value={displayValue} /> : <ApiResultView value={displayValue} />}
+				{showTelegramRich ? (
+					<TelegramSearchResultView value={displayValue} />
+				) : (
+					<ApiResultView value={displayValue} suppressReadyPlaceholder={streaming || hasStartedTelegramSearch} />
+				)}
 			</WorkflowShell>
 		</div>
 	);
