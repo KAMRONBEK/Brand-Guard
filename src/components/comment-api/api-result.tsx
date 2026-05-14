@@ -517,9 +517,19 @@ function inferPostPlatform(post: AnalyzedPost, fallback: SocialPlatformBadge): S
 	return fallback;
 }
 
-export function ApiResultView({ value, empty }: { value: unknown; empty?: string }) {
+export function ApiResultView({
+	value,
+	empty,
+	suppressReadyPlaceholder,
+}: {
+	value: unknown;
+	empty?: string;
+	/** When true and there is no payload yet, omit the dashed “ready to run” card (e.g. in-flight Comment API streams). */
+	suppressReadyPlaceholder?: boolean;
+}) {
 	const { t } = useTranslation();
 	if (value === undefined) {
+		if (suppressReadyPlaceholder) return null;
 		return (
 			<InsightEmptyState
 				title={t("sys.commentApi.readyTitle")}
