@@ -150,6 +150,7 @@
 			},
 			"workbench": "Ish stoli",
 			"telegramSearch": "Telegram qidiruvi",
+			"platformsSearch": "Barcha platformalarda qidiruv",
 			"instagramSearchStream": "Instagram qidiruv oqimi",
 			"instagramPostCommentStream": "Instagram post izohlari oqimi",
 			"reports": "Hisobotlar",
@@ -182,6 +183,11 @@
 			"closeRight": "Oʻngdan yopish",
 			"fullscreen": "Toʻliq ekran",
 			"refresh": "Yangilash"
+		},
+		"workflowCache": {
+			"clearOutcome": "Natijalarni tozalash",
+			"quotaExceeded": "Natijalar saqlanmadi — brauzer xotirasi toʻlgan boʻlishi mumkin.",
+			"restoredHint": "Saqlangan natijalar koʻrsatilmoqda."
 		},
 		"workbench": {
 			"title": "Brend amallari",
@@ -399,7 +405,41 @@
 				"exampleCountry": "Kontekst",
 				"exampleSolution": "Yondashuv",
 				"exampleAdaptation": "Mahalliy moslash",
+				"aiGeneratedBadge": "AI yaratgan",
+				"aiAdviceZoneDisclaimer": "Quyidagi xulosa va tavsiyalar avtomatik shakllantiriladi. Ularni yoʻriqnoma deb qabul qiling va harakatdan oldin faktlarni tekshiring.",
 				"timingTitle": "Vaqt (ms)"
+			}
+		},
+		"platformsSearch": {
+			"title": "Barcha platformalarda qidiruv",
+			"subtitle": "Telegram kanallari hamda bogʻlangan Instagram va Facebook uchun bitta oqim (Comment API).",
+			"cardTitle": "Telegram, Instagram va Facebook boʻyicha eslatmalarni topish",
+			"hint": "Telegram kanallari va kalit soʻzlardan foydalanadi; Instagram va Facebook akslari birlashtirilgan xizmat tomondan moslashtiriladi.",
+			"keywordsLabel": "Kalit soʻzlar",
+			"keywordsPlaceholder": "Soʻz yozing, keyin Enter yoki vergul…",
+			"channelsLabel": "Telegram kanallari",
+			"channelsPlaceholder": "@kanal yoki t.me havola, keyin Enter…",
+			"bilingualLabel": "Ikki tilli kalit soʻz kengaytirish",
+			"bilingualHint": "Yoqilganda asl soʻzlar bilan transliteratsiyalar ham qidirilishi mumkin.",
+			"bilingualOn": "Ikki tilli kengaytirish yoqilgan",
+			"run": "Barcha platformada qidirish",
+			"running": "Platformalar boʻyicha qidirilmoqda…",
+			"streamProgressTitle": "Jonli progress",
+			"streamProgressSubtitle": "Birlashtirilgan platformalar qidiruv oqimidan yangilanishlar.",
+			"streamProgressWaiting": "Birinchi yangilanish kutilmoqda…",
+			"tabAll": "Hammasi",
+			"miniPostsLabel": "Natijdagi postlar",
+			"noTelegramBlock": "Bu javobda hali Telegram bloki yoʻq.",
+			"noInstagramPosts": "Javobda Instagram postlari yoʻq.",
+			"noFacebookPosts": "Javobda Facebook postlari yoʻq.",
+			"result": {
+				"summaryTitle": "Soʻrov ustuni",
+				"keywordsHeading": "Kalit soʻzlar",
+				"expandedKeywordsToggle": "Shuningdek qidirildi ({{count}})",
+				"totalPostsAll": "Postlar (barcha platformalar)",
+				"totalPostsAllHint": "Telegram, Instagram va Facebook uchun jami",
+				"inAllPlatforms": "Bogʻlangan platformalar boʻylab",
+				"sentimentMixTitle": "Ton aralashmasi"
 			}
 		},
 		"analysis": {

@@ -150,6 +150,7 @@
 			},
 			"workbench": "Рабочий стол",
 			"telegramSearch": "Поиск в Telegram",
+			"platformsSearch": "Поиск по всем платформам",
 			"instagramSearchStream": "Поток поиска Instagram",
 			"instagramPostCommentStream": "Поток комментариев к посту Instagram",
 			"reports": "Отчёты",
@@ -182,6 +183,11 @@
 			"closeRight": "Закрыть справа",
 			"fullscreen": "Полный экран",
 			"refresh": "Обновить"
+		},
+		"workflowCache": {
+			"clearOutcome": "Очистить результаты",
+			"quotaExceeded": "Не удалось сохранить результаты — память браузера заполнена.",
+			"restoredHint": "Показываются сохранённые результаты."
 		},
 		"workbench": {
 			"title": "Действия бренда",
@@ -399,7 +405,41 @@
 				"exampleCountry": "Контекст",
 				"exampleSolution": "Подход",
 				"exampleAdaptation": "Адаптация",
+				"aiGeneratedBadge": "Ответ ИИ",
+				"aiAdviceZoneDisclaimer": "Резюме и рекомендации ниже сформированы автоматически. Относитесь к ним как к подсказкам — проверяйте факты и применимость.",
 				"timingTitle": "Время (мс)"
+			}
+		},
+		"platformsSearch": {
+			"title": "Поиск по всем платформам",
+			"subtitle": "Поток Telegram-каналы плюс связанный Instagram и Facebook в одном ответе (Comment API).",
+			"cardTitle": "Найти упоминания в Telegram, Instagram и Facebook",
+			"hint": "Использует ваши Telegram-каналы и ключевые слова; зеркала в Instagram и Facebook подбирает единый сервис.",
+			"keywordsLabel": "Ключевые слова",
+			"keywordsPlaceholder": "Слово, затем Enter или запятая…",
+			"channelsLabel": "Telegram-каналы",
+			"channelsPlaceholder": "@канал или ссылка t.me, затем Enter…",
+			"bilingualLabel": "Двуязычное расширение ключевых слов",
+			"bilingualHint": "Включено — сервис может искать транслитерации вместе с исходными словами.",
+			"bilingualOn": "Двуязычное расширение вкл.",
+			"run": "Искать во всех платформах",
+			"running": "Идёт поиск…",
+			"streamProgressTitle": "Живой прогресс",
+			"streamProgressSubtitle": "Обновления потока единого поиска.",
+			"streamProgressWaiting": "Ожидаем первое обновление…",
+			"tabAll": "Все",
+			"miniPostsLabel": "Постов в выдаче",
+			"noTelegramBlock": "В этом ответе ещё нет блока Telegram.",
+			"noInstagramPosts": "В ответе нет постов Instagram.",
+			"noFacebookPosts": "В ответе нет постов Facebook.",
+			"result": {
+				"summaryTitle": "Обзор запроса",
+				"keywordsHeading": "Ключевые слова",
+				"expandedKeywordsToggle": "Также искали ({{count}})",
+				"totalPostsAll": "Постов (все платформы)",
+				"totalPostsAllHint": "Сумма Telegram, Instagram и Facebook",
+				"inAllPlatforms": "По связанным платформам",
+				"sentimentMixTitle": "Смесь тональности"
 			}
 		},
 		"analysis": {

@@ -150,6 +150,7 @@
 			},
 			"workbench": "Workbench",
 			"telegramSearch": "Telegram search",
+			"platformsSearch": "Multi-platform search",
 			"instagramSearchStream": "Instagram search stream",
 			"instagramPostCommentStream": "Instagram post comment stream",
 			"reports": "Reports",
@@ -182,6 +183,11 @@
 			"closeRight": "Close Right",
 			"fullscreen": "FullScreen",
 			"refresh": "Refresh"
+		},
+		"workflowCache": {
+			"clearOutcome": "Clear results",
+			"quotaExceeded": "Could not save results to browser storage — it may be full.",
+			"restoredHint": "Showing saved results."
 		},
 		"workbench": {
 			"title": "Brand actions",
@@ -399,7 +405,41 @@
 				"exampleCountry": "Context",
 				"exampleSolution": "Approach",
 				"exampleAdaptation": "Local adaptation",
+				"aiGeneratedBadge": "AI-generated",
+				"aiAdviceZoneDisclaimer": "The summary and recommendations below are produced automatically. Treat them as suggestions — verify facts and suitability before acting.",
 				"timingTitle": "Timing (ms)"
+			}
+		},
+		"platformsSearch": {
+			"title": "Multi-platform search",
+			"subtitle": "Search Telegram channels plus linked Instagram and Facebook coverage in one stream (comment API).",
+			"cardTitle": "Find mentions across Telegram, Instagram, and Facebook",
+			"hint": "Uses your Telegram channels and keywords; Instagram and Facebook mirrors are matched by the unified service.",
+			"keywordsLabel": "Keywords",
+			"keywordsPlaceholder": "Enter a keyword, then Enter or comma…",
+			"channelsLabel": "Telegram channels",
+			"channelsPlaceholder": "@channel or t.me link, then Enter…",
+			"bilingualLabel": "Bilingual keyword expansion",
+			"bilingualHint": "When on, transliterations may be searched alongside your keywords.",
+			"bilingualOn": "Bilingual expansion on",
+			"run": "Search all platforms",
+			"running": "Searching platforms…",
+			"streamProgressTitle": "Live progress",
+			"streamProgressSubtitle": "Updates from the unified platforms search stream.",
+			"streamProgressWaiting": "Waiting for the first update…",
+			"tabAll": "All",
+			"miniPostsLabel": "Posts in results",
+			"noTelegramBlock": "No Telegram block in this response yet.",
+			"noInstagramPosts": "No Instagram posts in this response.",
+			"noFacebookPosts": "No Facebook posts in this response.",
+			"result": {
+				"summaryTitle": "Query overview",
+				"keywordsHeading": "Keywords",
+				"expandedKeywordsToggle": "Also searched ({{count}})",
+				"totalPostsAll": "Posts (all platforms)",
+				"totalPostsAllHint": "Aggregate from Telegram, Instagram, and Facebook",
+				"inAllPlatforms": "Across linked platforms",
+				"sentimentMixTitle": "Sentiment mix"
 			}
 		},
 		"analysis": {
