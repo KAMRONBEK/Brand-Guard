@@ -1,8 +1,9 @@
 import Logo from "@/assets/icons/ic-logo-badge.svg";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { QueryClient } from "@tanstack/react-query";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import { Helmet, HelmetProvider } from "react-helmet-async";
+import { createQueryPersistOptions, getAppQueryClient, QUERY_PERSIST_STORAGE_KEY } from "@/lib/query-client";
 import { MotionLazy } from "./components/animate/motion-lazy";
 import { RouteLoadingProgress } from "./components/loading";
 import Toast from "./components/toast";
@@ -21,10 +22,21 @@ if (import.meta.env.DEV) {
 	});
 }
 
+const workflowQueryPersister = createSyncStoragePersister({
+	storage: typeof window === "undefined" ? undefined : window.localStorage,
+	key: QUERY_PERSIST_STORAGE_KEY,
+	throttleTime: 800,
+});
+
+const queryClientForApp = getAppQueryClient();
+
 function App({ children }: { children: React.ReactNode }) {
 	return (
 		<HelmetProvider>
-			<QueryClientProvider client={new QueryClient()}>
+			<PersistQueryClientProvider
+				client={queryClientForApp}
+				persistOptions={createQueryPersistOptions(workflowQueryPersister)}
+			>
 				<ThemeProvider adapters={[AntdAdapter]}>
 					<VercelAnalytics debug={import.meta.env.PROD} />
 					<Helmet>
@@ -35,7 +47,7 @@ function App({ children }: { children: React.ReactNode }) {
 					<RouteLoadingProgress />
 					<MotionLazy>{children}</MotionLazy>
 				</ThemeProvider>
-			</QueryClientProvider>
+			</PersistQueryClientProvider>
 		</HelmetProvider>
 	);
 }
