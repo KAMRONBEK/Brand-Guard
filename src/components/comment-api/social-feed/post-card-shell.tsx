@@ -7,12 +7,14 @@ import { Title } from "@/ui/typography";
 import { cn } from "@/utils";
 import { LinkRow } from "./link-row";
 
-export type SocialPlatformBadge = "instagram" | "facebook" | "telegram";
+export type SocialPlatformBadge = "instagram" | "facebook" | "telegram" | "web";
 
-const PLATFORM_ICONS: Record<SocialPlatformBadge, string> = {
+/** Iconify icon id per platform (for badges, inline labels). */
+export const SOCIAL_PLATFORM_ICONS: Record<SocialPlatformBadge, string> = {
 	instagram: "skill-icons:instagram",
 	facebook: "logos:facebook",
 	telegram: "mdi:telegram",
+	web: "mdi:web",
 };
 
 /** Top-of-card wash that fades toward the neutral card body below the metadata block. */
@@ -23,6 +25,7 @@ const PLATFORM_HEADER_SURFACE: Record<SocialPlatformBadge, string> = {
 		"relative border-border/35 border-b bg-card bg-gradient-to-b from-[#0866FF]/[0.24] via-[#0866FF]/10 via-45% to-transparent to-[88%] dark:from-[#4294FF]/[0.22] dark:via-blue-400/12 dark:to-transparent",
 	telegram:
 		"relative border-border/35 border-b bg-card bg-gradient-to-b from-sky-500/[0.24] via-sky-600/[0.10] via-45% to-transparent to-[88%] dark:from-sky-400/[0.22] dark:via-cyan-500/12 dark:to-transparent",
+	web: "relative border-border/35 border-b bg-card bg-gradient-to-b from-emerald-600/[0.18] via-teal-600/[0.08] via-45% to-transparent to-[88%] dark:from-emerald-500/[0.16] dark:via-teal-600/10 dark:to-transparent",
 };
 
 export function PostCardShell({
@@ -67,7 +70,7 @@ export function PostCardShell({
 								dense && "py-0.5 text-[11px]",
 							)}
 						>
-							<Icon icon={PLATFORM_ICONS[platform]} size={dense ? 12 : 14} aria-hidden />
+							<Icon icon={SOCIAL_PLATFORM_ICONS[platform]} size={dense ? 12 : 14} aria-hidden />
 							<span>{platformLabel}</span>
 						</Badge>
 						{headerBadges}
