@@ -344,6 +344,20 @@
 				"streamProgressWaiting": "Waiting for the first update…"
 			}
 		},
+		"keywordRules": {
+			"sectionLabel": "Keyword sets",
+			"sectionHint": "Each row is its own rule (combined with OR across rows). The primary term must match; every required term must appear; excluded terms filter out matches.",
+			"primaryLabel": "Keyword",
+			"primaryHint": "Not case-sensitive.",
+			"requiredLabel": "Required keywords",
+			"requiredHint": "Separate with commas. Every term must appear.",
+			"excludedLabel": "Excluded keywords",
+			"excludedHint": "Separate with commas. If any of these appear, the mention is skipped.",
+			"addRow": "Add keyword set",
+			"removeRowAria": "Remove keyword set row {{row}}",
+			"requiredShort": "Must include",
+			"excludedShort": "Must not include"
+		},
 		"telegramSearch": {
 			"title": "Telegram search",
 			"subtitle": "Stream Telegram search against channels and keywords (comment API).",
@@ -412,9 +426,9 @@
 		},
 		"platformsSearch": {
 			"title": "Multi-platform search",
-			"subtitle": "Search Telegram channels plus linked Instagram and Facebook coverage in one stream (comment API).",
-			"cardTitle": "Find mentions across Telegram, Instagram, and Facebook",
-			"hint": "Uses your Telegram channels and keywords; Instagram and Facebook mirrors are matched by the unified service.",
+			"subtitle": "Search Telegram channels, linked Instagram and Facebook, and monitored news sites in one stream (comment API).",
+			"cardTitle": "Find mentions across Telegram, Instagram, Facebook, and the web",
+			"hint": "Uses your Telegram channels and keywords; Instagram, Facebook, and web/news coverage are matched by the unified service.",
 			"keywordsLabel": "Keywords",
 			"keywordsPlaceholder": "Enter a keyword, then Enter or comma…",
 			"channelsLabel": "Telegram channels",
@@ -428,18 +442,32 @@
 			"streamProgressSubtitle": "Updates from the unified platforms search stream.",
 			"streamProgressWaiting": "Waiting for the first update…",
 			"tabAll": "All",
+			"tabWithCount": "{{name}} ({{count}})",
 			"miniPostsLabel": "Posts in results",
 			"noTelegramBlock": "No Telegram block in this response yet.",
 			"noInstagramPosts": "No Instagram posts in this response.",
 			"noFacebookPosts": "No Facebook posts in this response.",
+			"noWebPosts": "No web or news articles in this response.",
 			"result": {
 				"summaryTitle": "Query overview",
 				"keywordsHeading": "Keywords",
 				"expandedKeywordsToggle": "Also searched ({{count}})",
 				"totalPostsAll": "Posts (all platforms)",
-				"totalPostsAllHint": "Aggregate from Telegram, Instagram, and Facebook",
+				"totalPostsAllHint": "Aggregate from Telegram, Instagram, Facebook, and web",
 				"inAllPlatforms": "Across linked platforms",
 				"sentimentMixTitle": "Sentiment mix"
+			},
+			"visualization": {
+				"tabMentions": "Mentions & reach",
+				"tabSentiment": "Sentiment",
+				"granularityDays": "Days",
+				"granularityWeeks": "Weeks",
+				"granularityMonths": "Months",
+				"clickHint": "Click on the chart to filter by date.",
+				"clearFilter": "Clear date filter",
+				"seriesPosts": "Posts",
+				"seriesViews": "Views",
+				"sentimentAxisTitle": "Post counts by sentiment"
 			}
 		},
 		"analysis": {
@@ -558,7 +586,8 @@
 				"platform": {
 					"instagram": "Instagram",
 					"facebook": "Facebook",
-					"telegram": "Telegram"
+					"telegram": "Telegram",
+					"web": "Web"
 				},
 				"openPost": "Open post",
 				"copyLink": "Copy link",
