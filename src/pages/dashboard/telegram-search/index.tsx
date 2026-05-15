@@ -7,11 +7,12 @@ import { ApiResultView } from "@/components/comment-api/api-result";
 import { WorkflowShell } from "@/components/comment-api/executive-ui";
 import { SearchStreamProgress, type SearchStreamStepRow } from "@/components/comment-api/search-stream-progress";
 import { isTelegramSearchPayload, TelegramSearchResultView } from "@/components/comment-api/telegram-search-result";
+import { KeywordRulesEditor } from "@/components/form/keyword-rules-editor";
 import { MultiValueChipInput } from "@/components/form/multi-value-chip-input";
 import Icon from "@/components/icon/icon";
 import { PeriodHoursPresetSelect } from "@/components/period-hours-preset-select";
 import { DEFAULT_COMMENT_API_LANGUAGE_HINT } from "@/constants/api-defaults";
-import type { TelegramSearchRequest } from "@/types/comment-api";
+import type { KeywordSearchRule, TelegramSearchRequest } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
@@ -20,6 +21,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/ui/switch";
 import { Text, Title } from "@/ui/typography";
 import { getSearchStreamProgressStep, mergeSearchStreamChunk } from "@/utils/mergeSearchStreamChunk";
+import {
+	buildApiKeywordPayload,
+	hasAnyPrimaryKeyword,
+	migrateSnapshotKeywordRules,
+} from "@/utils/keyword-search-rules";
 import {
 	type OptionalFiniteNumber,
 	optionalFiniteNumberDisplay,
@@ -66,7 +72,9 @@ export default function TelegramSearchPage() {
 		staleTime: 1000 * 60 * 30,
 	});
 
-	const [keywords, setKeywords] = useState<string[]>(() => persisted?.inputs.keywords ?? []);
+	const [keywordRules, setKeywordRules] = useState<KeywordSearchRule[]>(() =>
+		migrateSnapshotKeywordRules(persisted?.inputs ?? null),
+	);
 	const [channels, setChannels] = useState<string[]>(() => persisted?.inputs.channels ?? []);
 	const [periodHours, setPeriodHours] = useState(() => persisted?.inputs.period_hours ?? 168);
 	const [language, setLanguage] = useState(() => persisted?.inputs.language ?? DEFAULT_COMMENT_API_LANGUAGE_HINT);
@@ -92,11 +100,16 @@ export default function TelegramSearchPage() {
 		Boolean(persisted && (persisted.result != null || persisted.error != null)),
 	);
 
-	const persistOutcome = (body: TelegramSearchRequest, payload: unknown | undefined, streamErr: Error | null) => {
+	const persistOutcome = (
+		body: TelegramSearchRequest,
+		formKeywordRules: KeywordSearchRule[],
+		payload: unknown | undefined,
+		streamErr: Error | null,
+	) => {
 		const snapshot = {
 			version: WORKFLOW_CACHE_VERSION as typeof WORKFLOW_CACHE_VERSION,
 			savedAt: Date.now(),
-			inputs: body,
+			inputs: { ...body, keyword_rules: formKeywordRules },
 			result: streamErr !== null ? null : (payload ?? null),
 			error: errorToCached(streamErr),
 		};
@@ -110,7 +123,7 @@ export default function TelegramSearchPage() {
 		clearWorkflowSnapshot(TG_CACHE_NS);
 		mergedPayloadRef.current = undefined;
 		streamErrorRef.current = null;
-		setKeywords([]);
+		setKeywordRules(migrateSnapshotKeywordRules(null));
 		setChannels([]);
 		setPeriodHours(168);
 		setLanguage(DEFAULT_COMMENT_API_LANGUAGE_HINT);
@@ -131,7 +144,10 @@ export default function TelegramSearchPage() {
 	const languageSelectValue = language.trim() === "" ? LANGUAGE_SELECT_OMIT : language.trim();
 
 	const canRun =
-		keywords.length > 0 && channels.length > 0 && !streaming && (!includeComments || maxCommentsPerPost !== "");
+		hasAnyPrimaryKeyword(keywordRules) &&
+		channels.length > 0 &&
+		!streaming &&
+		(!includeComments || maxCommentsPerPost !== "");
 
 	const runSearch = () => {
 		const maxComments =
@@ -141,8 +157,9 @@ export default function TelegramSearchPage() {
 					? Math.floor(maxCommentsPerPost)
 					: TELEGRAM_DEFAULT_MAX_COMMENTS_PER_POST;
 
+		const kw = buildApiKeywordPayload(keywordRules);
 		const body: TelegramSearchRequest = {
-			keywords,
+			...kw,
 			channels,
 			period_hours: periodHours,
 			max_per_hit: TELEGRAM_SEARCH_MAX_PER_HIT,
@@ -191,7 +208,7 @@ export default function TelegramSearchPage() {
 			.finally(() => {
 				if (abortRef.current === ac) {
 					setStreaming(false);
-					persistOutcome(body, mergedPayloadRef.current, streamErrorRef.current);
+					persistOutcome(body, keywordRules, mergedPayloadRef.current, streamErrorRef.current);
 					setStreamSteps([]);
 				}
 			});
@@ -241,17 +258,25 @@ export default function TelegramSearchPage() {
 				intent={t("sys.workbench.intent.discovery")}
 			>
 				<div className="flex flex-col gap-4">
-					<div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-5">
-						<MultiValueChipInput
+					<div className="grid gap-4 lg:grid-cols-2 lg:items-start lg:gap-5">
+						<KeywordRulesEditor
 							className="min-w-0"
-							id="tg-keywords"
-							label={t("sys.telegramSearch.keywordsLabel")}
-							hint={t("sys.telegramSearch.chipCommitHint")}
-							values={keywords}
-							onChange={setKeywords}
-							placeholder={t("sys.telegramSearch.keywordsPlaceholder")}
+							id="tg-keyword-rules"
 							disabled={streaming}
-							removeItemAriaLabel={(value) => t("sys.telegramSearch.removeChipAria", { value })}
+							value={keywordRules}
+							onChange={setKeywordRules}
+							copy={{
+								sectionLabel: t("sys.keywordRules.sectionLabel"),
+								sectionHint: t("sys.keywordRules.sectionHint"),
+								primaryLabel: t("sys.keywordRules.primaryLabel"),
+								primaryHint: t("sys.keywordRules.primaryHint"),
+								requiredLabel: t("sys.keywordRules.requiredLabel"),
+								requiredHint: t("sys.keywordRules.requiredHint"),
+								excludedLabel: t("sys.keywordRules.excludedLabel"),
+								excludedHint: t("sys.keywordRules.excludedHint"),
+								addRow: t("sys.keywordRules.addRow"),
+								removeRowAria: (rowIndex) => t("sys.keywordRules.removeRowAria", { row: rowIndex + 1 }),
+							}}
 						/>
 						<MultiValueChipInput
 							className="min-w-0"
