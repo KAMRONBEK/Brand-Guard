@@ -15,7 +15,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/ui/collap
 import { Text, Title } from "@/ui/typography";
 import { cn } from "@/utils";
 import { isTelegramGroupedPostsObject } from "@/utils/mergeSearchStreamChunk";
+import { parseKeywordRulesArray } from "@/utils/keyword-search-rules";
 import { AdviceRichBody } from "./advice-rich-body";
+import { KeywordRulesEchoSummary } from "./keyword-rules-echo";
 import { MetricCard, RawJsonDetails } from "./api-result";
 import { CollapsibleText } from "./social-feed/collapsible-text";
 import { FlatCommentTimeline } from "./social-feed/comment-thread";
@@ -476,6 +478,8 @@ export function TelegramSearchResultView({
 	if (!isRecord(value)) return null;
 
 	const keywords = Array.isArray(value.keywords) ? (value.keywords as string[]) : [];
+	const echoedRules = parseKeywordRulesArray(value.keyword_rules);
+	const hasEchoedRules = echoedRules.some((r) => r.keyword.trim() !== "");
 	const channels = Array.isArray(value.channels) ? (value.channels as string[]) : [];
 	const periodHours = toNumber(value.period_hours);
 	const stats = isRecord(value.stats) ? value.stats : undefined;
@@ -499,17 +503,21 @@ export function TelegramSearchResultView({
 							<Text variant="caption" className="mb-1.5 font-medium text-muted-foreground">
 								{t("sys.telegramSearch.result.keywordsHeading")}
 							</Text>
-							<div className="flex flex-wrap gap-1.5">
-								{keywords.length === 0 ? (
-									<span className="text-sm text-muted-foreground">—</span>
-								) : (
-									keywords.map((kw) => (
-										<Badge key={kw} variant="secondary" className="font-normal">
-											{kw}
-										</Badge>
-									))
-								)}
-							</div>
+							{hasEchoedRules ? (
+								<KeywordRulesEchoSummary rules={echoedRules} />
+							) : (
+								<div className="flex flex-wrap gap-1.5">
+									{keywords.length === 0 ? (
+										<span className="text-sm text-muted-foreground">—</span>
+									) : (
+										keywords.map((kw) => (
+											<Badge key={kw} variant="secondary" className="font-normal">
+												{kw}
+											</Badge>
+										))
+									)}
+								</div>
+							)}
 						</div>
 						<div>
 							<Text variant="caption" className="mb-1.5 font-medium text-muted-foreground">

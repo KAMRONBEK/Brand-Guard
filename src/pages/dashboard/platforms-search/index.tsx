@@ -7,11 +7,12 @@ import { ApiResultView } from "@/components/comment-api/api-result";
 import { WorkflowShell } from "@/components/comment-api/executive-ui";
 import { SearchStreamProgress, type SearchStreamStepRow } from "@/components/comment-api/search-stream-progress";
 import { UnifiedPlatformsSearchResultView } from "@/components/comment-api/unified-platforms-search-result";
+import { KeywordRulesEditor } from "@/components/form/keyword-rules-editor";
 import { MultiValueChipInput } from "@/components/form/multi-value-chip-input";
 import Icon from "@/components/icon/icon";
 import { PeriodHoursPresetSelect } from "@/components/period-hours-preset-select";
 import { DEFAULT_COMMENT_API_LANGUAGE_HINT } from "@/constants/api-defaults";
-import type { PlatformsUnifiedSearchRequest } from "@/types/comment-api";
+import type { KeywordSearchRule, PlatformsUnifiedSearchRequest } from "@/types/comment-api";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Input } from "@/ui/input";
@@ -30,6 +31,11 @@ import {
 	setOptionalFiniteNumberFromInput,
 } from "@/utils/optional-number-input";
 import {
+	buildApiKeywordPayload,
+	hasAnyPrimaryKeyword,
+	migrateSnapshotKeywordRules,
+} from "@/utils/keyword-search-rules";
+import {
 	clearWorkflowSnapshot,
 	errorToCached,
 	readWorkflowSnapshot,
@@ -41,7 +47,7 @@ import {
 const CACHE_NS = WORKFLOW_SNAPSHOT_IDS.platformsUnifiedSearch;
 
 export type PlatformsSearchSnapshotInputs = {
-	keywords: string[];
+	keyword_rules: KeywordSearchRule[];
 	channels: string[];
 	period_hours: number;
 	bilingual: boolean;
@@ -79,7 +85,9 @@ export default function PlatformsSearchPage() {
 		staleTime: 1000 * 60 * 30,
 	});
 
-	const [keywords, setKeywords] = useState<string[]>(() => persisted?.inputs.keywords ?? []);
+	const [keywordRules, setKeywordRules] = useState<KeywordSearchRule[]>(() =>
+		migrateSnapshotKeywordRules(persisted?.inputs ?? null),
+	);
 	const [channels, setChannels] = useState<string[]>(() => persisted?.inputs.channels ?? []);
 	const [periodHours, setPeriodHours] = useState(() => persisted?.inputs.period_hours ?? 168);
 	const [language, setLanguage] = useState(() => persisted?.inputs.language ?? DEFAULT_COMMENT_API_LANGUAGE_HINT);
@@ -107,11 +115,12 @@ export default function PlatformsSearchPage() {
 
 	const persistOutcome = (
 		body: PlatformsUnifiedSearchRequest,
+		formKeywordRules: KeywordSearchRule[],
 		payload: unknown | undefined,
 		streamErr: Error | null,
 	) => {
 		const inputs: PlatformsSearchSnapshotInputs = {
-			keywords: body.keywords ?? [],
+			keyword_rules: formKeywordRules,
 			channels: body.channels ?? [],
 			period_hours: body.period_hours ?? periodHours,
 			bilingual: body.bilingual ?? true,
@@ -136,7 +145,7 @@ export default function PlatformsSearchPage() {
 		clearWorkflowSnapshot(CACHE_NS);
 		mergedPayloadRef.current = undefined;
 		streamErrorRef.current = null;
-		setKeywords([]);
+		setKeywordRules(migrateSnapshotKeywordRules(null));
 		setChannels([]);
 		setPeriodHours(168);
 		setLanguage(DEFAULT_COMMENT_API_LANGUAGE_HINT);
@@ -158,7 +167,10 @@ export default function PlatformsSearchPage() {
 	const languageSelectValue = language.trim() === "" ? LANGUAGE_SELECT_OMIT : language.trim();
 
 	const canRun =
-		keywords.length > 0 && channels.length > 0 && !streaming && (!includeComments || maxCommentsPerPost !== "");
+		hasAnyPrimaryKeyword(keywordRules) &&
+		channels.length > 0 &&
+		!streaming &&
+		(!includeComments || maxCommentsPerPost !== "");
 
 	const runSearch = () => {
 		const maxComments =
@@ -168,8 +180,9 @@ export default function PlatformsSearchPage() {
 					? Math.floor(maxCommentsPerPost)
 					: PLATFORMS_DEFAULT_MAX_COMMENTS_PER_POST;
 
+		const kw = buildApiKeywordPayload(keywordRules);
 		const body: PlatformsUnifiedSearchRequest = {
-			keywords,
+			...kw,
 			channels,
 			period_hours: periodHours,
 			bilingual,
@@ -217,7 +230,7 @@ export default function PlatformsSearchPage() {
 			.finally(() => {
 				if (abortRef.current === ac) {
 					setStreaming(false);
-					persistOutcome(body, mergedPayloadRef.current, streamErrorRef.current);
+					persistOutcome(body, keywordRules, mergedPayloadRef.current, streamErrorRef.current);
 					setStreamSteps([]);
 				}
 			});
@@ -267,131 +280,141 @@ export default function PlatformsSearchPage() {
 				intent={t("sys.workbench.intent.discovery")}
 			>
 				<div className="flex flex-col gap-4">
-					<div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-5">
-						<MultiValueChipInput
-							className="min-w-0"
-							id="pf-keywords"
-							label={t("sys.platformsSearch.keywordsLabel")}
-							hint={t("sys.telegramSearch.chipCommitHint")}
-							values={keywords}
-							onChange={setKeywords}
-							placeholder={t("sys.platformsSearch.keywordsPlaceholder")}
-							disabled={streaming}
-							removeItemAriaLabel={(value) => t("sys.telegramSearch.removeChipAria", { value })}
-						/>
-						<MultiValueChipInput
-							className="min-w-0"
-							id="pf-channels"
-							label={t("sys.platformsSearch.channelsLabel")}
-							hint={t("sys.telegramSearch.chipCommitHint")}
-							values={channels}
-							onChange={setChannels}
-							normalizeSegment={normalizeTelegramChannelSegment}
-							placeholder={t("sys.platformsSearch.channelsPlaceholder")}
-							disabled={streaming}
-							removeItemAriaLabel={(value) => t("sys.telegramSearch.removeChipAria", { value })}
-						/>
-					</div>
 					<div className="grid gap-4 lg:grid-cols-2 lg:items-start lg:gap-5">
-						<div
-							className={
-								streaming
-									? "pointer-events-none flex min-h-0 w-full min-w-0 flex-col gap-4 rounded-xl border border-border/80 bg-muted/25 px-4 py-3 opacity-70"
-									: "flex min-h-0 w-full min-w-0 flex-col gap-4 rounded-xl border border-border/80 bg-muted/25 px-4 py-3"
-							}
-						>
-							<label
-								htmlFor="pf-bilingual"
-								className="flex cursor-pointer flex-row items-start justify-between gap-3 select-none sm:items-center"
-							>
-								<div className="min-w-0 flex-1 space-y-0.5 pr-2">
-									<span className="block text-sm font-medium leading-none">
-										{t("sys.platformsSearch.bilingualLabel")}
-									</span>
-									<span className="block text-xs font-normal text-muted-foreground">
-										{t("sys.platformsSearch.bilingualHint")}
-									</span>
-								</div>
-								<Switch
-									id="pf-bilingual"
-									checked={bilingual}
-									onCheckedChange={(checked) => setBilingual(checked === true)}
-									disabled={streaming}
-									className="mt-1 shrink-0 sm:mt-0"
-								/>
-							</label>
-
-							<label
-								htmlFor="pf-include-comments"
-								className="flex cursor-pointer flex-row items-start justify-between gap-3 select-none sm:items-center"
-							>
-								<div className="min-w-0 flex-1 space-y-0.5 pr-2">
-									<span className="block text-sm font-medium leading-none">
-										{t("sys.telegramSearch.includeCommentsLabel")}
-									</span>
-									<span className="block text-xs font-normal text-muted-foreground">
-										{t("sys.telegramSearch.includeCommentsHint")}
-									</span>
-								</div>
-								<Switch
-									id="pf-include-comments"
-									checked={includeComments}
-									onCheckedChange={(checked) => setIncludeComments(checked === true)}
-									disabled={streaming}
-									className="mt-1 shrink-0 sm:mt-0"
-								/>
-							</label>
-
+						<KeywordRulesEditor
+							className="min-w-0"
+							id="pf-keyword-rules"
+							disabled={streaming}
+							value={keywordRules}
+							onChange={setKeywordRules}
+							copy={{
+								sectionLabel: t("sys.keywordRules.sectionLabel"),
+								sectionHint: t("sys.keywordRules.sectionHint"),
+								primaryLabel: t("sys.keywordRules.primaryLabel"),
+								primaryHint: t("sys.keywordRules.primaryHint"),
+								requiredLabel: t("sys.keywordRules.requiredLabel"),
+								requiredHint: t("sys.keywordRules.requiredHint"),
+								excludedLabel: t("sys.keywordRules.excludedLabel"),
+								excludedHint: t("sys.keywordRules.excludedHint"),
+								addRow: t("sys.keywordRules.addRow"),
+								removeRowAria: (rowIndex) => t("sys.keywordRules.removeRowAria", { row: rowIndex + 1 }),
+							}}
+						/>
+						<div className="flex min-w-0 flex-col gap-4">
+							<MultiValueChipInput
+								className="min-w-0"
+								id="pf-channels"
+								label={t("sys.platformsSearch.channelsLabel")}
+								hint={t("sys.telegramSearch.chipCommitHint")}
+								values={channels}
+								onChange={setChannels}
+								normalizeSegment={normalizeTelegramChannelSegment}
+								placeholder={t("sys.platformsSearch.channelsPlaceholder")}
+								disabled={streaming}
+								removeItemAriaLabel={(value) => t("sys.telegramSearch.removeChipAria", { value })}
+							/>
 							<div
-								className={`flex w-full min-w-0 max-w-[8.5rem] flex-col gap-1.5 border-t border-border/60 pt-3 ${includeComments ? "" : "opacity-40"}`}
+								className={
+									streaming
+										? "pointer-events-none flex min-h-0 w-full min-w-0 flex-col gap-4 rounded-xl border border-border/80 bg-muted/25 px-4 py-3 opacity-70"
+										: "flex min-h-0 w-full min-w-0 flex-col gap-4 rounded-xl border border-border/80 bg-muted/25 px-4 py-3"
+								}
 							>
-								<Label htmlFor="pf-max-comments" className="text-sm leading-tight text-muted-foreground">
-									{t("sys.telegramSearch.maxCommentsPerPostShortLabel")}
-								</Label>
-								<Input
-									id="pf-max-comments"
-									type="number"
-									min={1}
-									className="h-9 w-full sm:w-24"
-									value={optionalFiniteNumberDisplay(maxCommentsPerPost)}
-									onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setMaxCommentsPerPost)}
-									placeholder={t("sys.telegramSearch.maxCommentsPerPostPlaceholder")}
-									disabled={streaming || !includeComments}
-								/>
-							</div>
-						</div>
-
-						<div className="flex min-w-0 w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3">
-							<div className="w-full min-w-0 flex-1 sm:min-w-[10rem] sm:max-w-[220px]">
-								<PeriodHoursPresetSelect
-									id="pf-ph"
-									label={t("sys.telegramSearch.periodHoursLabel")}
-									value={periodHours}
-									onHoursChange={setPeriodHours}
-									disabled={streaming}
-								/>
-							</div>
-							<div className="w-full min-w-0 flex-1 space-y-2 sm:min-w-[9rem] sm:max-w-[180px]">
-								<Label htmlFor="pf-lang-select" className="text-sm">
-									{t("sys.telegramSearch.languageLabel")}
-								</Label>
-								<Select
-									disabled={streaming}
-									value={languageSelectValue}
-									onValueChange={(next) => setLanguage(next === LANGUAGE_SELECT_OMIT ? "" : next)}
+								<label
+									htmlFor="pf-bilingual"
+									className="flex cursor-pointer flex-row items-start justify-between gap-3 select-none sm:items-center"
 								>
-									<SelectTrigger id="pf-lang-select" className="h-9 w-full min-w-0">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent position="popper" className="w-[var(--radix-select-trigger-width)]">
-										<SelectItem value={LANGUAGE_SELECT_OMIT}>{t("sys.telegramSearch.languageOption.omit")}</SelectItem>
-										{PLATFORMS_LANGUAGE_CODES.map((code) => (
-											<SelectItem key={code} value={code}>
-												{t(`sys.telegramSearch.languageOption.${code}`)}
+									<div className="min-w-0 flex-1 space-y-0.5 pr-2">
+										<span className="block text-sm font-medium leading-none">
+											{t("sys.platformsSearch.bilingualLabel")}
+										</span>
+										<span className="block text-xs font-normal text-muted-foreground">
+											{t("sys.platformsSearch.bilingualHint")}
+										</span>
+									</div>
+									<Switch
+										id="pf-bilingual"
+										checked={bilingual}
+										onCheckedChange={(checked) => setBilingual(checked === true)}
+										disabled={streaming}
+										className="mt-1 shrink-0 sm:mt-0"
+									/>
+								</label>
+
+								<label
+									htmlFor="pf-include-comments"
+									className="flex cursor-pointer flex-row items-start justify-between gap-3 select-none sm:items-center"
+								>
+									<div className="min-w-0 flex-1 space-y-0.5 pr-2">
+										<span className="block text-sm font-medium leading-none">
+											{t("sys.telegramSearch.includeCommentsLabel")}
+										</span>
+										<span className="block text-xs font-normal text-muted-foreground">
+											{t("sys.telegramSearch.includeCommentsHint")}
+										</span>
+									</div>
+									<Switch
+										id="pf-include-comments"
+										checked={includeComments}
+										onCheckedChange={(checked) => setIncludeComments(checked === true)}
+										disabled={streaming}
+										className="mt-1 shrink-0 sm:mt-0"
+									/>
+								</label>
+
+								<div
+									className={`flex w-full min-w-0 max-w-[8.5rem] flex-col gap-1.5 border-t border-border/60 pt-3 ${includeComments ? "" : "opacity-40"}`}
+								>
+									<Label htmlFor="pf-max-comments" className="text-sm leading-tight text-muted-foreground">
+										{t("sys.telegramSearch.maxCommentsPerPostShortLabel")}
+									</Label>
+									<Input
+										id="pf-max-comments"
+										type="number"
+										min={1}
+										className="h-9 w-full sm:w-24"
+										value={optionalFiniteNumberDisplay(maxCommentsPerPost)}
+										onChange={(event) => setOptionalFiniteNumberFromInput(event.target.value, setMaxCommentsPerPost)}
+										placeholder={t("sys.telegramSearch.maxCommentsPerPostPlaceholder")}
+										disabled={streaming || !includeComments}
+									/>
+								</div>
+							</div>
+
+							<div className="flex min-w-0 w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3">
+								<div className="w-full min-w-0 flex-1 sm:min-w-[10rem] sm:max-w-[220px]">
+									<PeriodHoursPresetSelect
+										id="pf-ph"
+										label={t("sys.telegramSearch.periodHoursLabel")}
+										value={periodHours}
+										onHoursChange={setPeriodHours}
+										disabled={streaming}
+									/>
+								</div>
+								<div className="w-full min-w-0 flex-1 space-y-2 sm:min-w-[9rem] sm:max-w-[180px]">
+									<Label htmlFor="pf-lang-select" className="text-sm">
+										{t("sys.telegramSearch.languageLabel")}
+									</Label>
+									<Select
+										disabled={streaming}
+										value={languageSelectValue}
+										onValueChange={(next) => setLanguage(next === LANGUAGE_SELECT_OMIT ? "" : next)}
+									>
+										<SelectTrigger id="pf-lang-select" className="h-9 w-full min-w-0">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent position="popper" className="w-[var(--radix-select-trigger-width)]">
+											<SelectItem value={LANGUAGE_SELECT_OMIT}>
+												{t("sys.telegramSearch.languageOption.omit")}
 											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+											{PLATFORMS_LANGUAGE_CODES.map((code) => (
+												<SelectItem key={code} value={code}>
+													{t(`sys.telegramSearch.languageOption.${code}`)}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
 							</div>
 						</div>
 					</div>

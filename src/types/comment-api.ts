@@ -122,10 +122,25 @@ export interface FacebookUnifiedSearchResponse {
 	type?: FacebookUnifiedSearchType;
 }
 
+/** One primary term with optional must-include and must-exclude modifiers (per-row OR semantics across rows). */
+export interface KeywordSearchRule {
+	keyword: string;
+	required_keywords?: string[];
+	excluded_keywords?: string[];
+	/** Client-only stable id for list keys; strip before sending to the comment API. */
+	clientRowKey?: string;
+}
+
 /** Body for POST /api/telegram/search and /api/telegram/search/stream (comment-api Swagger). */
 export interface TelegramSearchRequest {
 	channels: string[];
 	keywords: string[];
+	/** Structured rules when the API supports per-keyword modifiers. */
+	keyword_rules?: KeywordSearchRule[];
+	/** Global must-include terms (legacy / single-rule payloads). */
+	required_keywords?: string[];
+	/** Global must-exclude terms (legacy / single-rule payloads). */
+	excluded_keywords?: string[];
 	include_comments?: boolean;
 	language?: string;
 	max_comments_per_post?: number;
@@ -138,6 +153,9 @@ export interface TelegramSearchRequest {
 export interface PlatformsUnifiedSearchRequest {
 	keywords: string[];
 	channels: string[];
+	keyword_rules?: KeywordSearchRule[];
+	required_keywords?: string[];
+	excluded_keywords?: string[];
 	period_hours?: number;
 	language?: string;
 	bilingual?: boolean;
@@ -211,6 +229,50 @@ export interface PlatformsUnifiedStatsSlice {
 	telegram?: SentimentCounts & { total_posts?: number };
 	instagram?: SentimentCounts & { total_posts?: number };
 	facebook?: SentimentCounts & { total_posts?: number };
+	web?: SentimentCounts & { total_posts?: number };
+}
+
+/** Daily bucket for unified platforms search visualization (`posts_by_date`). */
+export interface PlatformsUnifiedPostsByDateRow {
+	date: string;
+	total_posts?: number;
+	positive?: number;
+	negative?: number;
+	neutral?: number;
+	positive_pct?: number;
+	negative_pct?: number;
+	neutral_pct?: number;
+	total_views?: number;
+	total_likes?: number;
+	telegram?: number;
+	instagram?: number;
+	facebook?: number;
+	web?: number;
+}
+
+export interface PlatformsUnifiedCommentSentimentByDateRow {
+	date: string;
+	total?: number;
+	positive?: number;
+	negative?: number;
+	neutral?: number;
+}
+
+/** Comment-level sentiment rollup when comments are included in the search. */
+export interface PlatformsUnifiedCommentSentimentRollup {
+	total?: number;
+	positive?: number;
+	negative?: number;
+	neutral?: number;
+	positive_pct?: number;
+	negative_pct?: number;
+	neutral_pct?: number;
+	by_date?: PlatformsUnifiedCommentSentimentByDateRow[];
+}
+
+export interface PlatformsUnifiedVisualization {
+	posts_by_date?: PlatformsUnifiedPostsByDateRow[];
+	comment_sentiment?: PlatformsUnifiedCommentSentimentRollup;
 }
 
 /**
@@ -218,6 +280,9 @@ export interface PlatformsUnifiedStatsSlice {
  */
 export interface PlatformsUnifiedSearchResponseRoot {
 	keywords?: string[];
+	keyword_rules?: KeywordSearchRule[];
+	required_keywords?: string[];
+	excluded_keywords?: string[];
 	expanded_keywords?: string[];
 	period_hours?: number;
 	channels?: string[];
@@ -225,6 +290,8 @@ export interface PlatformsUnifiedSearchResponseRoot {
 	telegram?: Record<string, unknown>;
 	instagram?: Record<string, unknown>;
 	facebook?: Record<string, unknown>;
+	web?: Record<string, unknown>;
+	visualization?: PlatformsUnifiedVisualization;
 	advice?: TelegramSearchAdvice;
 	timing_ms?: Record<string, number>;
 }

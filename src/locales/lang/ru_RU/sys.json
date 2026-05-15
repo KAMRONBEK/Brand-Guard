@@ -344,6 +344,20 @@
 				"streamProgressWaiting": "Ожидаем первое обновление…"
 			}
 		},
+		"keywordRules": {
+			"sectionLabel": "Наборы ключевых слов",
+			"sectionHint": "Каждая строка — отдельное правило (строки объединяются через ИЛИ). Должно встречаться основное слово; все обязательные термины должны присутствовать; исключения отсеивают совпадения.",
+			"primaryLabel": "Ключевое слово",
+			"primaryHint": "Регистр не учитывается.",
+			"requiredLabel": "Обязательные слова",
+			"requiredHint": "Разделяйте запятыми. Каждый термин должен присутствовать в тексте.",
+			"excludedLabel": "Исключающие слова",
+			"excludedHint": "Разделяйте запятыми. Если встречается любое из них, упоминание исключается.",
+			"addRow": "Добавить набор",
+			"removeRowAria": "Удалить строку набора {{row}}",
+			"requiredShort": "Обязательно",
+			"excludedShort": "Исключить"
+		},
 		"telegramSearch": {
 			"title": "Поиск в Telegram",
 			"subtitle": "Потоковый поиск по каналам и ключевым словам через Comment API.",
@@ -412,9 +426,9 @@
 		},
 		"platformsSearch": {
 			"title": "Поиск по всем платформам",
-			"subtitle": "Поток Telegram-каналы плюс связанный Instagram и Facebook в одном ответе (Comment API).",
-			"cardTitle": "Найти упоминания в Telegram, Instagram и Facebook",
-			"hint": "Использует ваши Telegram-каналы и ключевые слова; зеркала в Instagram и Facebook подбирает единый сервис.",
+			"subtitle": "В одном потоке: Telegram, связанные Instagram и Facebook и отслеживаемые новостные сайты (Comment API).",
+			"cardTitle": "Найти упоминания в Telegram, Instagram, Facebook и веб-СМИ",
+			"hint": "Использует ваши Telegram-каналы и ключевые слова; Instagram, Facebook и веб-выдачу подбирает единый сервис.",
 			"keywordsLabel": "Ключевые слова",
 			"keywordsPlaceholder": "Слово, затем Enter или запятая…",
 			"channelsLabel": "Telegram-каналы",
@@ -428,18 +442,32 @@
 			"streamProgressSubtitle": "Обновления потока единого поиска.",
 			"streamProgressWaiting": "Ожидаем первое обновление…",
 			"tabAll": "Все",
+			"tabWithCount": "{{name}} ({{count}})",
 			"miniPostsLabel": "Постов в выдаче",
 			"noTelegramBlock": "В этом ответе ещё нет блока Telegram.",
 			"noInstagramPosts": "В ответе нет постов Instagram.",
 			"noFacebookPosts": "В ответе нет постов Facebook.",
+			"noWebPosts": "В ответе нет веб-статей или материалов СМИ.",
 			"result": {
 				"summaryTitle": "Обзор запроса",
 				"keywordsHeading": "Ключевые слова",
 				"expandedKeywordsToggle": "Также искали ({{count}})",
 				"totalPostsAll": "Постов (все платформы)",
-				"totalPostsAllHint": "Сумма Telegram, Instagram и Facebook",
+				"totalPostsAllHint": "Сумма Telegram, Instagram, Facebook и веб",
 				"inAllPlatforms": "По связанным платформам",
 				"sentimentMixTitle": "Смесь тональности"
+			},
+			"visualization": {
+				"tabMentions": "Упоминания и охват",
+				"tabSentiment": "Тональность",
+				"granularityDays": "Дни",
+				"granularityWeeks": "Недели",
+				"granularityMonths": "Месяцы",
+				"clickHint": "Нажмите на график, чтобы отфильтровать по дате.",
+				"clearFilter": "Сбросить фильтр по дате",
+				"seriesPosts": "Посты",
+				"seriesViews": "Просмотры",
+				"sentimentAxisTitle": "Количество постов по тональности"
 			}
 		},
 		"analysis": {
@@ -558,7 +586,8 @@
 				"platform": {
 					"instagram": "Instagram",
 					"facebook": "Facebook",
-					"telegram": "Telegram"
+					"telegram": "Telegram",
+					"web": "Веб"
 				},
 				"openPost": "Открыть пост",
 				"copyLink": "Копировать ссылку",

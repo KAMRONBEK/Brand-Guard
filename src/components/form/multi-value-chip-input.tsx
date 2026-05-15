@@ -4,14 +4,8 @@ import Icon from "@/components/icon/icon";
 import { Badge } from "@/ui/badge";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
+import { splitCommaOrNewlineSegments } from "@/utils/splitCommaOrNewline";
 import { cn } from "@/utils";
-
-function splitIntoSegments(raw: string): string[] {
-	return raw
-		.split(/[,\n\r]+/)
-		.map((s) => s.trim())
-		.filter(Boolean);
-}
 
 function mergeUnique(current: readonly string[], segments: readonly string[]): string[] {
 	const next = [...current];
@@ -65,7 +59,7 @@ export function MultiValueChipInput({
 
 	const finalizeDraft = useCallback(
 		(raw: string) => {
-			const segments = applySegmentNormalizers(splitIntoSegments(raw), normalizeSegment);
+			const segments = applySegmentNormalizers(splitCommaOrNewlineSegments(raw), normalizeSegment);
 			if (segments.length === 0) return;
 			onChange(mergeUnique(valuesRef.current, segments));
 			setDraft("");
@@ -140,7 +134,7 @@ export function MultiValueChipInput({
 						const text = e.clipboardData.getData("text");
 						if (!/[\n\r,]/u.test(text)) return;
 						e.preventDefault();
-						const segments = applySegmentNormalizers(splitIntoSegments(text), normalizeSegment);
+						const segments = applySegmentNormalizers(splitCommaOrNewlineSegments(text), normalizeSegment);
 						onChange(mergeUnique(valuesRef.current, segments));
 						setDraft("");
 					}}

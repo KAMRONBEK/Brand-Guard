@@ -1,6 +1,6 @@
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Icon } from "@/components/icon";
-import type { SocialPlatformBadge } from "@/components/comment-api/social-feed/post-card-shell";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
@@ -8,12 +8,17 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/ui/collap
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { Text, Title } from "@/ui/typography";
 import { cn } from "@/utils";
+import { parseKeywordRulesArray } from "@/utils/keyword-search-rules";
 import { isTelegramGroupedPostsObject } from "@/utils/mergeSearchStreamChunk";
 import { isUnifiedPlatformsSearchPayload } from "@/utils/mergeUnifiedPlatformsSearchChunk";
+import { KeywordRulesEchoSummary } from "./keyword-rules-echo";
 import { MetricCard, RawJsonDetails } from "./api-result";
+import type { PlatformsSearchDateRange } from "./platforms-search-date-filter";
+import { filterUnifiedRootPostsByDateRange } from "./platforms-search-date-filter";
+import { PlatformsSearchTrendsChart } from "./platforms-search-trends-chart";
 import { CollapsibleText } from "./social-feed/collapsible-text";
 import { MetricsChipsRow } from "./social-feed/metrics-chips-row";
-import { PostCardShell } from "./social-feed/post-card-shell";
+import { PostCardShell, SOCIAL_PLATFORM_ICONS, type SocialPlatformBadge } from "./social-feed/post-card-shell";
 import { TelegramSearchAdviceTimingPanel, TelegramSearchResultView } from "./telegram-search-result";
 
 const SENTIMENT_ORDER = ["negative", "neutral", "positive"] as const;
@@ -74,40 +79,6 @@ function buildSyntheticTelegram(root: Record<string, unknown>): Record<string, u
 	};
 }
 
-function PlatformMiniCard({
-	platform,
-	label,
-	posts,
-	postsLabel,
-	onAccent,
-}: {
-	platform: SocialPlatformBadge;
-	label: string;
-	posts: number;
-	postsLabel: string;
-	onAccent?: string;
-}) {
-	const icon =
-		platform === "telegram" ? "mdi:telegram" : platform === "instagram" ? "skill-icons:instagram" : "logos:facebook";
-	return (
-		<div
-			className={cn(
-				"flex min-w-[7rem] flex-1 flex-col gap-1 rounded-xl border border-border/70 bg-muted/20 px-3 py-2.5 sm:min-w-[8.5rem]",
-				onAccent,
-			)}
-		>
-			<div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-				<Icon icon={icon} size={14} className="shrink-0 opacity-80" aria-hidden />
-				<span className="truncate">{label}</span>
-			</div>
-			<div className="text-xl font-semibold tabular-nums">{posts}</div>
-			<Text variant="caption" className="text-muted-foreground">
-				{postsLabel}
-			</Text>
-		</div>
-	);
-}
-
 function SocialPlatformPostsSection({
 	platform,
 	title,
@@ -137,6 +108,7 @@ function SocialPlatformPostsSection({
 			{SENTIMENT_ORDER.map((sentiment) => {
 				const posts = postsForBucket(postsRoot, sentiment);
 				if (posts.length === 0) return null;
+				const isWeb = platform === "web";
 				const sectionBorder =
 					sentiment === "negative"
 						? "border-destructive/35"
@@ -159,20 +131,26 @@ function SocialPlatformPostsSection({
 								const caption =
 									typeof post.caption === "string" ? post.caption : typeof post.text === "string" ? post.text : "";
 								const likesRaw = post.likes ?? post.like_count;
+								const titleStr = typeof post.title === "string" ? post.title.trim() : "";
+								const siteStr = typeof post.site === "string" ? post.site.trim() : "";
+								const headline = isWeb ? (titleStr !== "" ? titleStr : "—") : socialHeadline(post);
+								const datetimeLine = isWeb
+									? formatWhen(typeof post.published === "string" ? post.published : undefined)
+									: formatWhen(
+											typeof post.timestamp === "string"
+												? post.timestamp
+												: typeof post.date === "string"
+													? post.date
+													: undefined,
+										);
 								return (
 									<PostCardShell
 										key={typeof post.url === "string" ? post.url : `${platform}-${sentiment}-${index}`}
 										className="min-w-0"
 										dense
 										platform={platform}
-										headline={socialHeadline(post)}
-										datetimeLine={formatWhen(
-											typeof post.timestamp === "string"
-												? post.timestamp
-												: typeof post.date === "string"
-													? post.date
-													: undefined,
-										)}
+										headline={headline}
+										datetimeLine={datetimeLine}
 										url={typeof post.url === "string" ? post.url : undefined}
 										headerBadges={
 											sentStr ? (
@@ -185,13 +163,25 @@ function SocialPlatformPostsSection({
 											) : null
 										}
 									>
-										<MetricsChipsRow
-											likeCount={typeof likesRaw === "string" || typeof likesRaw === "number" ? likesRaw : undefined}
-										/>
-										{caption.trim() !== "" ? (
-											<CollapsibleText text={caption} clampClassName="line-clamp-3" />
+										{isWeb ? (
+											siteStr !== "" ? (
+												<Badge variant="secondary" className="w-fit font-normal">
+													{siteStr}
+												</Badge>
+											) : null
 										) : (
-											<p className="text-sm text-muted-foreground">—</p>
+											<>
+												<MetricsChipsRow
+													likeCount={
+														typeof likesRaw === "string" || typeof likesRaw === "number" ? likesRaw : undefined
+													}
+												/>
+												{caption.trim() !== "" ? (
+													<CollapsibleText text={caption} clampClassName="line-clamp-3" />
+												) : (
+													<p className="text-sm text-muted-foreground">—</p>
+												)}
+											</>
 										)}
 									</PostCardShell>
 								);
@@ -214,15 +204,54 @@ export function UnifiedPlatformsSearchResultView({
 }) {
 	const { t } = useTranslation();
 
-	if (!isRecord(value) || !isUnifiedPlatformsSearchPayload(value)) {
+	const rootRecord =
+		isRecord(value) && isUnifiedPlatformsSearchPayload(value) ? (value as Record<string, unknown>) : null;
+
+	const [selectedTrendRange, setSelectedTrendRange] = useState<PlatformsSearchDateRange | null>(null);
+
+	const searchQueryKey = useMemo(() => {
+		if (!rootRecord) return "";
+		const rules = parseKeywordRulesArray(rootRecord.keyword_rules).filter((r) => r.keyword.trim() !== "");
+		const rulesKey =
+			rules.length > 0
+				? rules
+						.map((r) => [r.keyword, ...(r.required_keywords ?? []), ...(r.excluded_keywords ?? [])].join("\u0002"))
+						.join("\u0003")
+				: Array.isArray(rootRecord.keywords)
+					? (rootRecord.keywords as string[]).join("\u0001")
+					: "";
+		return `${rulesKey}|${String(rootRecord.period_hours ?? "")}`;
+	}, [rootRecord]);
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: clear stale drill-down when keywords or period change without relying on rootRecord identity (streaming updates reuse structure)
+	useEffect(() => {
+		setSelectedTrendRange(null);
+	}, [searchQueryKey]);
+
+	const displayRoot = useMemo(() => {
+		if (!rootRecord) return null;
+		return filterUnifiedRootPostsByDateRange(rootRecord, selectedTrendRange);
+	}, [rootRecord, selectedTrendRange]);
+
+	const postsByDate = useMemo(() => {
+		if (!rootRecord) return [];
+		const vizRoot = isRecord(rootRecord.visualization) ? rootRecord.visualization : undefined;
+		return Array.isArray(vizRoot?.posts_by_date) ? (vizRoot.posts_by_date as Record<string, unknown>[]) : [];
+	}, [rootRecord]);
+
+	if (!rootRecord || displayRoot === null) {
 		return null;
 	}
 
-	const keywords = Array.isArray(value.keywords) ? (value.keywords as string[]) : [];
-	const expandedKeywords = Array.isArray(value.expanded_keywords) ? (value.expanded_keywords as string[]) : [];
-	const periodHours = toNumber(value.period_hours);
+	const keywords = Array.isArray(rootRecord.keywords) ? (rootRecord.keywords as string[]) : [];
+	const echoedRules = parseKeywordRulesArray(rootRecord.keyword_rules);
+	const hasEchoedRules = echoedRules.some((r) => r.keyword.trim() !== "");
+	const expandedKeywords = Array.isArray(rootRecord.expanded_keywords)
+		? (rootRecord.expanded_keywords as string[])
+		: [];
+	const periodHours = toNumber(rootRecord.period_hours);
 
-	const stats = isRecord(value.stats) ? value.stats : undefined;
+	const stats = isRecord(rootRecord.stats) ? rootRecord.stats : undefined;
 	const totalPosts = toNumber(stats?.total_posts);
 	const pos = toNumber(stats?.positive);
 	const neg = toNumber(stats?.negative);
@@ -231,22 +260,44 @@ export function UnifiedPlatformsSearchResultView({
 	const negPct = toNumber(stats?.negative_pct);
 	const neuPct = toNumber(stats?.neutral_pct);
 
-	const tg = isRecord(value.telegram) ? value.telegram : undefined;
-	const ig = isRecord(value.instagram) ? value.instagram : undefined;
-	const fb = isRecord(value.facebook) ? value.facebook : undefined;
+	const tg = isRecord(displayRoot.telegram) ? displayRoot.telegram : undefined;
+	const ig = isRecord(displayRoot.instagram) ? displayRoot.instagram : undefined;
+	const fb = isRecord(displayRoot.facebook) ? displayRoot.facebook : undefined;
+	const web = isRecord(displayRoot.web) ? displayRoot.web : undefined;
 
 	const tgStats = isRecord(tg?.stats) ? tg.stats : undefined;
 	const igStats = isRecord(ig?.stats) ? ig.stats : undefined;
 	const fbStats = isRecord(fb?.stats) ? fb.stats : undefined;
+	const webStats = isRecord(web?.stats) ? web.stats : undefined;
 
-	const tgPosts = toNumber(tgStats?.total_posts) ?? countSocialPosts(tg?.posts);
-	const igPosts = toNumber(igStats?.total_posts) ?? countSocialPosts(ig?.posts);
-	const fbPosts = toNumber(fbStats?.total_posts) ?? countSocialPosts(fb?.posts);
+	const filteredByChart = selectedTrendRange !== null;
+	const tgPosts = filteredByChart
+		? countSocialPosts(tg?.posts)
+		: (toNumber(tgStats?.total_posts) ?? countSocialPosts(tg?.posts));
+	const igPosts = filteredByChart
+		? countSocialPosts(ig?.posts)
+		: (toNumber(igStats?.total_posts) ?? countSocialPosts(ig?.posts));
+	const fbPosts = filteredByChart
+		? countSocialPosts(fb?.posts)
+		: (toNumber(fbStats?.total_posts) ?? countSocialPosts(fb?.posts));
+	const webPosts = filteredByChart
+		? countSocialPosts(web?.posts)
+		: (toNumber(webStats?.total_posts) ?? countSocialPosts(web?.posts));
+	const sumPlatformPosts = tgPosts + igPosts + fbPosts + webPosts;
+	const allTabPostCount = filteredByChart ? sumPlatformPosts : totalPosts != null ? totalPosts : sumPlatformPosts;
 
-	const syntheticTelegram = buildSyntheticTelegram(value);
+	const syntheticTelegram = buildSyntheticTelegram(displayRoot);
 
 	return (
 		<div className="flex flex-col gap-5">
+			{postsByDate.length > 0 ? (
+				<PlatformsSearchTrendsChart
+					rows={postsByDate}
+					selectedRange={selectedTrendRange}
+					onSelectRange={setSelectedTrendRange}
+				/>
+			) : null}
+
 			<Card className="border-primary/15 bg-gradient-to-br from-primary/[0.07] via-background to-background">
 				<CardHeader className="pb-2">
 					<CardTitle className="text-base">{t("sys.platformsSearch.result.summaryTitle")}</CardTitle>
@@ -269,17 +320,21 @@ export function UnifiedPlatformsSearchResultView({
 						<Text variant="caption" className="mb-1.5 font-medium text-muted-foreground">
 							{t("sys.platformsSearch.result.keywordsHeading")}
 						</Text>
-						<div className="flex flex-wrap gap-1.5">
-							{keywords.length === 0 ? (
-								<span className="text-sm text-muted-foreground">—</span>
-							) : (
-								keywords.map((kw) => (
-									<Badge key={kw} variant="secondary" className="font-normal">
-										{kw}
-									</Badge>
-								))
-							)}
-						</div>
+						{hasEchoedRules ? (
+							<KeywordRulesEchoSummary rules={echoedRules} />
+						) : (
+							<div className="flex flex-wrap gap-1.5">
+								{keywords.length === 0 ? (
+									<span className="text-sm text-muted-foreground">—</span>
+								) : (
+									keywords.map((kw) => (
+										<Badge key={kw} variant="secondary" className="font-normal">
+											{kw}
+										</Badge>
+									))
+								)}
+							</div>
+						)}
 					</div>
 					{expandedKeywords.length > 0 ? (
 						<Collapsible>
@@ -341,46 +396,41 @@ export function UnifiedPlatformsSearchResultView({
 				</div>
 			) : null}
 
-			<div className="flex flex-wrap gap-3">
-				<PlatformMiniCard
-					platform="telegram"
-					label={t("sys.commentApi.socialFeed.platform.telegram")}
-					posts={tgPosts}
-					postsLabel={t("sys.platformsSearch.miniPostsLabel")}
-					onAccent="border-sky-500/25"
-				/>
-				<PlatformMiniCard
-					platform="instagram"
-					label={t("sys.commentApi.socialFeed.platform.instagram")}
-					posts={igPosts}
-					postsLabel={t("sys.platformsSearch.miniPostsLabel")}
-					onAccent="border-pink-500/20"
-				/>
-				<PlatformMiniCard
-					platform="facebook"
-					label={t("sys.commentApi.socialFeed.platform.facebook")}
-					posts={fbPosts}
-					postsLabel={t("sys.platformsSearch.miniPostsLabel")}
-					onAccent="border-blue-600/20"
-				/>
-			</div>
-
 			<Tabs defaultValue="all" className="w-full min-w-0">
 				<TabsList className="h-auto min-h-9 w-full max-w-full flex-wrap justify-start gap-1 p-1">
-					<TabsTrigger value="all" className="shrink-0">
-						{t("sys.platformsSearch.tabAll")}
+					<TabsTrigger value="all" className="shrink-0 tabular-nums">
+						{t("sys.platformsSearch.tabWithCount", {
+							name: t("sys.platformsSearch.tabAll"),
+							count: allTabPostCount,
+						})}
 					</TabsTrigger>
-					<TabsTrigger value="telegram" className="shrink-0 gap-1">
+					<TabsTrigger value="telegram" className="shrink-0 gap-1 tabular-nums">
 						<Icon icon="mdi:telegram" size={14} aria-hidden />
-						{t("sys.commentApi.socialFeed.platform.telegram")}
+						{t("sys.platformsSearch.tabWithCount", {
+							name: t("sys.commentApi.socialFeed.platform.telegram"),
+							count: tgPosts,
+						})}
 					</TabsTrigger>
-					<TabsTrigger value="instagram" className="shrink-0 gap-1">
+					<TabsTrigger value="instagram" className="shrink-0 gap-1 tabular-nums">
 						<Icon icon="skill-icons:instagram" size={14} aria-hidden />
-						{t("sys.commentApi.socialFeed.platform.instagram")}
+						{t("sys.platformsSearch.tabWithCount", {
+							name: t("sys.commentApi.socialFeed.platform.instagram"),
+							count: igPosts,
+						})}
 					</TabsTrigger>
-					<TabsTrigger value="facebook" className="shrink-0 gap-1">
+					<TabsTrigger value="facebook" className="shrink-0 gap-1 tabular-nums">
 						<Icon icon="logos:facebook" size={14} aria-hidden />
-						{t("sys.commentApi.socialFeed.platform.facebook")}
+						{t("sys.platformsSearch.tabWithCount", {
+							name: t("sys.commentApi.socialFeed.platform.facebook"),
+							count: fbPosts,
+						})}
+					</TabsTrigger>
+					<TabsTrigger value="web" className="shrink-0 gap-1 tabular-nums">
+						<Icon icon={SOCIAL_PLATFORM_ICONS.web} size={14} aria-hidden />
+						{t("sys.platformsSearch.tabWithCount", {
+							name: t("sys.commentApi.socialFeed.platform.web"),
+							count: webPosts,
+						})}
 					</TabsTrigger>
 				</TabsList>
 
@@ -419,6 +469,18 @@ export function UnifiedPlatformsSearchResultView({
 								<Badge variant="secondary">{fbPosts}</Badge>
 							</div>
 							<SocialPlatformPostsSection platform="facebook" title="" postsRoot={fb.posts} t={t} />
+						</section>
+					) : null}
+					{web?.posts ? (
+						<section>
+							<div className="mb-3 flex items-center gap-2 border-border/60 border-b pb-2">
+								<Icon icon={SOCIAL_PLATFORM_ICONS.web} size={20} className="text-emerald-600" aria-hidden />
+								<Title as="h3" className="text-lg font-semibold">
+									{t("sys.commentApi.socialFeed.platform.web")}
+								</Title>
+								<Badge variant="secondary">{webPosts}</Badge>
+							</div>
+							<SocialPlatformPostsSection platform="web" title="" postsRoot={web.posts} t={t} />
 						</section>
 					) : null}
 				</TabsContent>
@@ -462,11 +524,26 @@ export function UnifiedPlatformsSearchResultView({
 						</Text>
 					)}
 				</TabsContent>
+
+				<TabsContent value="web" className="mt-4">
+					{web?.posts ? (
+						<SocialPlatformPostsSection
+							platform="web"
+							title={t("sys.commentApi.socialFeed.platform.web")}
+							postsRoot={web.posts}
+							t={t}
+						/>
+					) : (
+						<Text variant="body2" className="text-muted-foreground">
+							{t("sys.platformsSearch.noWebPosts")}
+						</Text>
+					)}
+				</TabsContent>
 			</Tabs>
 
-			<TelegramSearchAdviceTimingPanel advice={value.advice} timing={value.timing_ms} />
+			<TelegramSearchAdviceTimingPanel advice={rootRecord.advice} timing={rootRecord.timing_ms} />
 
-			<RawJsonDetails value={value} />
+			<RawJsonDetails value={rootRecord} />
 		</div>
 	);
 }

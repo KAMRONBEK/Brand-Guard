@@ -18,6 +18,7 @@ import {
 	MetricsChipsRow,
 	PostCardShell,
 	SentimentMiniStrip,
+	SOCIAL_PLATFORM_ICONS,
 	type SocialPlatformBadge,
 } from "./social-feed";
 
@@ -374,16 +375,7 @@ function PublisherCommentResultView({ payload }: { payload: PublisherCommentAggr
 				<CardHeader className="pb-2">
 					<CardTitle className="flex flex-wrap items-center gap-2 text-base">
 						<span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-0.5 text-sm font-normal">
-							<Icon
-								icon={
-									platform === "facebook"
-										? "logos:facebook"
-										: platform === "instagram"
-											? "skill-icons:instagram"
-											: "mdi:web"
-								}
-								size={16}
-							/>
+							<Icon icon={SOCIAL_PLATFORM_ICONS[platform]} size={16} />
 							{platformLabel}
 						</span>
 						{payload.mode != null && payload.mode !== "" && modeLabel != null ? (
@@ -424,7 +416,7 @@ function PublisherCommentResultView({ payload }: { payload: PublisherCommentAggr
 					<CardHeader className="pb-2">
 						<CardTitle className="flex flex-wrap items-center gap-2 text-base font-semibold">
 							<span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-0.5 text-sm font-normal">
-								<Icon icon={platform === "facebook" ? "logos:facebook" : "skill-icons:instagram"} size={16} />
+								<Icon icon={SOCIAL_PLATFORM_ICONS[platform]} size={16} />
 								{t("sys.commentApi.publisher.postPreview")}
 							</span>
 						</CardTitle>
@@ -511,10 +503,18 @@ function formatDisplayDatetime(raw: string | undefined): string | undefined {
 }
 
 function inferAggregatePlatform(_root: Record<string, unknown> | null, posts: AnalyzedPost[]): SocialPlatformBadge {
+	let hasFacebook = false;
+	let hasInstagram = false;
+	let hasWeb = false;
 	for (const p of posts) {
 		const url = typeof p.url === "string" ? p.url : "";
-		if (/facebook\.com|fb\.watch|fb\.com\b/i.test(url)) return "facebook";
+		if (/facebook\.com|fb\.watch|fb\.com\b/i.test(url)) hasFacebook = true;
+		else if (/instagram\.com/i.test(url)) hasInstagram = true;
+		else if (/^https?:\/\//i.test(url)) hasWeb = true;
 	}
+	if (hasFacebook) return "facebook";
+	if (hasInstagram) return "instagram";
+	if (hasWeb) return "web";
 	return "instagram";
 }
 
@@ -522,6 +522,7 @@ function inferPostPlatform(post: AnalyzedPost, fallback: SocialPlatformBadge): S
 	const url = typeof post.url === "string" ? post.url : "";
 	if (/facebook\.com|fb\.watch|fb\.com\b/i.test(url)) return "facebook";
 	if (/instagram\.com/i.test(url)) return "instagram";
+	if (/^https?:\/\//i.test(url)) return "web";
 	return fallback;
 }
 
