@@ -138,6 +138,9 @@ export function mergeSearchStreamChunk(accumulated: unknown, chunk: unknown): un
 	for (const key of [
 		"keyword",
 		"keywords",
+		"keyword_rules",
+		"required_keywords",
+		"excluded_keywords",
 		"channels",
 		"period_hours",
 		"search_type",
